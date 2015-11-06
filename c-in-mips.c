@@ -35,6 +35,7 @@ int readmips(char* filename){
 }
 
 // Start of Arithmetic functions
+//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 void add(register1, register2, register3) {
 	register1 = register2 + register3;
 }
