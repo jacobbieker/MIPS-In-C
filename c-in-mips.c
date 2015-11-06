@@ -58,3 +58,88 @@ void addi(register1, register2, number) {
 void addiu(register1, register2, number) {
 	register1 = register2 + number;
 }
+
+//Mult and Divide left, have to use LO and HI
+
+// Start of Logical functions
+
+void and(register1, register2, register3) {
+	if (register2 == 1 && register3 == 1) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void andi(register1, register2, number) {
+	if (register2 == 1 && number == 1) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void or (register1, register2, register3) {
+	if (register2 == 1 || register3 == 1) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void ori(register1, register2, number) {
+	if (register2 == 1 || number == 1) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void xor(register1, register2, register3) {
+	if ((register2 == 1 && register3 != 1) || (register2 != 1 && register3 == 1)) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void nor(register1, register2, register3) {
+	if (!(register2 == 1 || register3 == 1)) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void slt(register1, register2, register3) {
+	if (register2 < register3) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void sltu(register1, register2, register3) {
+	if (register2 < register3) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
+
+void slti(register1, register2, number) {
+	if (register2 < number) {
+		register1 = 1;
+	}
+	else {
+		register1 = 0;
+	}
+}
