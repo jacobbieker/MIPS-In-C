@@ -6,3 +6,8 @@
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+int main() {
+
+	int data_memory[1024];
+	char string_memeory[2014];
+}
