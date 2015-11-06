@@ -14,3 +14,28 @@ int main() {
 
 
 }
+
+void add(register1, register2, register3) {
+	register1 = register2 + register3;
+}
+
+void addu(register1, register2, register3) {
+	register1 = register2 + register3;
+}
+
+void sub(register1, register2, register3) {
+	register1 = register2 - register3;
+}
+
+void subu(register1, register2, register3) {
+	register1 = register2 - register3;
+}
+
+void addi(register1, register2, number) {
+	register1 = register2 + number;
+}
+
+void addiu(register1, register2, number) {
+	register1 = register2 + number;
+}
+
