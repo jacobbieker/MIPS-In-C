@@ -7,6 +7,8 @@
 // The last 0 in the RegisterFile is for the registers $0, $zero
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[31][4] = {"$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$gp", "$sp", "$fp", "$ra"};
+static int LO;
+static int HI;
 static int data_memory[1024];
 static char* string_memory[1024];
 static char* instructions[1024];
@@ -145,6 +147,18 @@ int alu(int operandA, int operandB, int Operation) {
 	else if (Operation == "subu") {
 		result = subu(operandA, operandB);
 	}
+	else if (Operation == "mult") {
+		mult(operandA, operandB);
+	}
+	else if (Operation == "multu") {
+		multu(operandA, operandB);
+	}
+	else if (Operation == "div") {
+		div(operandA, operandB);
+	}
+	else if (Operation = "divu") {
+		divu(operandA, operandB);
+	}
 	else if (Operation == "and") {
 		result = and(operandA, operandB);
 	}
@@ -206,7 +220,25 @@ unsigned int addiu(register2, number) {
 }
 
 //Mult and Divide left, have to use LO and HI
+void mult(register2, register3) {
+	LO = ((register2 * register3) << 32) >> 32;
+	HI = (register2 * register3) >> 32;
+}
 
+void multu(register2, register3) {
+	LO = ((register2 * register3) << 32) >> 32;
+	HI = (register2 * register3) >> 32;
+}
+
+void div(register2, register3) {
+	LO = RegisterFile[register2] / RegisterFile[register3];
+	HI = RegisterFile[register2] % RegisterFile[register3];
+}
+
+void divu(register2, register3) {
+	LO = RegisterFile[register2] / RegisterFile[register3];
+	HI = RegisterFile[register2] % RegisterFile[register3];
+}
 // Start of Logical functions
 
 int and(register2, register3) {
