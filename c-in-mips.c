@@ -219,15 +219,14 @@ unsigned int addiu(register2, number) {
 	return RegisterFile[register2] + number;
 }
 
-//Mult and Divide left, have to use LO and HI
 void mult(register2, register3) {
-	LO = ((register2 * register3) << 32) >> 32;
-	HI = (register2 * register3) >> 32;
+	LO = ((RegisterFile[register2] * RegisterFile[register3]) << 32) >> 32;
+	HI = (RegisterFile[register2] * RegisterFile[register3]) >> 32;
 }
 
 void multu(register2, register3) {
-	LO = ((register2 * register3) << 32) >> 32;
-	HI = (register2 * register3) >> 32;
+	LO = ((RegisterFile[register2] * RegisterFile[register3]) << 32) >> 32;
+	HI = (RegisterFile[register2] * RegisterFile[register3]) >> 32;
 }
 
 void div(register2, register3) {
@@ -246,12 +245,7 @@ int and(register2, register3) {
 }
 
 int andi(register2, number) {
-	if (RegisterFile[register2] == 1 && number == 1) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (RegisterFile[register2] & number);
 }
 
 int or(register2, register3) {
@@ -259,13 +253,7 @@ int or(register2, register3) {
 }
 
 int ori(register2, number) {
-	//TODO: Allow assigning to return value
-	if (RegisterFile[register2] == 1 || number == 1) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (RegisterFile[register2] | number);
 }
 
 int xor(register2, register3) {
