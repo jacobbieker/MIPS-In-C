@@ -13,7 +13,7 @@ static char* instructions[1024];
 static char** jump_names; 
 static int* jump_locations;
 
-typedef enum {add, addu, sub, subu, addi, addiu, mult, multu, Div, divu, lw, lh, lhu, lb, lbu, sw, sh, sb, lui, mfhi, mflo, mfcZ, mtcZ, and, andi, or, ori, xor, nor, slt, sltu, slti, sll, srl, sra, sllv, srlv, srav, beq, bne, j, jr, jal} instruction;
+typedef enum {add, addu, sub, subu, addi, addiu, mult, multu, div, divu, lw, lh, lhu, lb, lbu, sw, sh, sb, lui, mfhi, mflo, mfcZ, mtcZ, and, andi, or, ori, xor, nor, slt, sltu, slti, sll, srl, sra, sllv, srlv, srav, beq, bne, j, jr, jal} instruction;
 
 static char* instr_name_list[46] = {"add", "addu", "sub", "subu", "addi", "addiu", "mult", "multu", "div", "divu", "lw", "lh", "lhu", "lb", "lbu", "sw", "sh", "sb", "lui", "mfhi", "mflo", "mfcZ", "mtcZ", "and", "andi", "or", "ori", "xor", "nor", "slt", "sltu", "slti", "sll", "srl", "sra", "sllv", "srlv", "srav", "beq", "bne", "j", "jr", "jal"};
 
