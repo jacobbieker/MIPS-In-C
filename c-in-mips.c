@@ -121,112 +121,125 @@ int alu(int operandA, operandB, char Operation) {
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(register1, register2, register3) {
-	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
-	return RegisterFile[register1];
+	register1 = RegisterFile[register2] + RegisterFile[register3];
+	return register1;
 }
 
-int addu(register1, register2, register3) {
-	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
-	return RegisterFile[register1];
+unsigned int addu(register1, register2, register3) {
+	register1 = RegisterFile[register2] + RegisterFile[register3];
+	return register1;
 }
 
-void sub(register1, register2, register3) {
-	RegisterFile[register1] = RegisterFile[register2] - RegisterFile[register3];
+int sub(register1, register2, register3) {
+	register1 = RegisterFile[register2] - RegisterFile[register3];
+	return register1;
 }
 
-void subu(register1, register2, register3) {
-	RegisterFile[register1] = RegisterFile[register2] - RegisterFile[register3];
+unsigned int subu(register1, register2, register3) {
+	register1 = RegisterFile[register2] - RegisterFile[register3];
+	return register1;
 }
 
-void addi(register1, register2, number) {
-	RegisterFile[register1] = RegisterFile[register2] + number;
+int addi(register1, register2, number) {
+	register1 = RegisterFile[register2] + number;
+	return register1;
 }
 
-void addiu(register1, register2, number) {
-	RegisterFile[register1] = RegisterFile[register2] + number;
+unsigned int addiu(register1, register2, number) {
+	register1 = RegisterFile[register2] + number;
+	return register1;
 }
 
 //Mult and Divide left, have to use LO and HI
 
 // Start of Logical functions
 
-void and(register1, register2, register3) {
+int and(register1, register2, register3) {
 	if (RegisterFile[register2] == 1 && RegisterFile[register3] == 1) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void andi(register1, register2, number) {
+int andi(register1, register2, number) {
 	if (RegisterFile[register2] == 1 && number == 1) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void or (register1, register2, register3) {
+int or(register1, register2, register3) {
 	if (RegisterFile[register2] == 1 || RegisterFile[register3] == 1) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void ori(register1, register2, number) {
+int ori(register1, register2, number) {
 	if (RegisterFile[register2] == 1 || number == 1) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void xor(register1, register2, register3) {
+int xor(register1, register2, register3) {
 	if ((RegisterFile[register2] == 1 && RegisterFile[register3] != 1) || (RegisterFile[register2] != 1 && RegisterFile[register3] == 1)) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void nor(register1, register2, register3) {
+int nor(register1, register2, register3) {
 	if (!(RegisterFile[register2] == 1 || RegisterFile[register3] == 1)) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void slt(register1, register2, register3) {
+int slt(register1, register2, register3) {
 	if (RegisterFile[register2] < RegisterFile[register3]) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void sltu(register1, register2, register3) {
+unsigned int sltu(register1, register2, register3) {
 	if (RegisterFile[register2] < RegisterFile[register3]) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
 
-void slti(register1, register2, number) {
+int slti(register1, register2, number) {
 	if (RegisterFile[register2] < number) {
-		RegisterFile[register1] = 1;
+		register1 = 1;
 	}
 	else {
-		RegisterFile[register1] = 0;
+		register1 = 0;
 	}
+	return register1;
 }
