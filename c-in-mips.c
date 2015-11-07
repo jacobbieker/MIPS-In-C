@@ -61,14 +61,73 @@ int readmips(char* filename){
     }
 }
 
-// Start of Arithmetic functions
-//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
-void add(register1, register2, register3) {
-	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
+
+//ALU function
+
+int alu(int operandA, operandB, char Operation) {
+	int result;
+	if (Operation == "add") {
+		
+	}
+	else if (Operation == "addi") {
+
+	}
+	else if (Operation == "addu") {
+
+	}
+	else if (Operation == "addiu") {
+
+	}
+	else if (Operation == "sub") {
+
+	}
+	else if (Operation == "subu") {
+
+	}
+	else if (Operation == "and") {
+
+	}
+	else if (Operation == "andi") {
+
+	}
+	else if (Operation == "or") {
+
+	}
+	else if (Operation == "ori") {
+
+	}
+	else if (Operation == "xor") {
+
+	}
+	else if (Operation == "nor") {
+
+	}
+	else if (Operation == "slt") {
+
+	}
+	else if (Operation == "slti") {
+
+	}
+	else if (Operation == "sltu") {
+
+	}
+	else {
+		perror("Command Not Found");
+		exit(-1);
+	}
+	return result;
 }
 
-void addu(register1, register2, register3) {
+// Start of Arithmetic functions
+//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
+int add(register1, register2, register3) {
 	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
+	return RegisterFile[register1];
+}
+
+int addu(register1, register2, register3) {
+	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
+	return RegisterFile[register1];
 }
 
 void sub(register1, register2, register3) {
