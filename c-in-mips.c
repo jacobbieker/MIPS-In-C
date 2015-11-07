@@ -4,7 +4,8 @@
 #include <ctype.h>
 #include <math.h>
 
-static int RegisterFile[31] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+// The last 0 in the RegisterFile is for the registers $0, $zero
+static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[31][4] = {"$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$gp", "$sp", "$fp", "$ra"};
 static int data_memory[1024];
 static char* string_memory[1024];
@@ -63,27 +64,27 @@ int readmips(char* filename){
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 void add(register1, register2, register3) {
-	register1 = register2 + register3;
+	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
 }
 
 void addu(register1, register2, register3) {
-	register1 = register2 + register3;
+	RegisterFile[register1] = RegisterFile[register2] + RegisterFile[register3];
 }
 
 void sub(register1, register2, register3) {
-	register1 = register2 - register3;
+	RegisterFile[register1] = RegisterFile[register2] - RegisterFile[register3];
 }
 
 void subu(register1, register2, register3) {
-	register1 = register2 - register3;
+	RegisterFile[register1] = RegisterFile[register2] - RegisterFile[register3];
 }
 
 void addi(register1, register2, number) {
-	register1 = register2 + number;
+	RegisterFile[register1] = RegisterFile[register2] + number;
 }
 
 void addiu(register1, register2, number) {
-	register1 = register2 + number;
+	RegisterFile[register1] = RegisterFile[register2] + number;
 }
 
 //Mult and Divide left, have to use LO and HI
@@ -91,82 +92,82 @@ void addiu(register1, register2, number) {
 // Start of Logical functions
 
 void and(register1, register2, register3) {
-	if (register2 == 1 && register3 == 1) {
-		register1 = 1;
+	if (RegisterFile[register2] == 1 && RegisterFile[register3] == 1) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void andi(register1, register2, number) {
-	if (register2 == 1 && number == 1) {
-		register1 = 1;
+	if (RegisterFile[register2] == 1 && number == 1) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void or (register1, register2, register3) {
-	if (register2 == 1 || register3 == 1) {
-		register1 = 1;
+	if (RegisterFile[register2] == 1 || RegisterFile[register3] == 1) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void ori(register1, register2, number) {
-	if (register2 == 1 || number == 1) {
-		register1 = 1;
+	if (RegisterFile[register2] == 1 || number == 1) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void xor(register1, register2, register3) {
-	if ((register2 == 1 && register3 != 1) || (register2 != 1 && register3 == 1)) {
-		register1 = 1;
+	if ((RegisterFile[register2] == 1 && RegisterFile[register3] != 1) || (RegisterFile[register2] != 1 && RegisterFile[register3] == 1)) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void nor(register1, register2, register3) {
-	if (!(register2 == 1 || register3 == 1)) {
-		register1 = 1;
+	if (!(RegisterFile[register2] == 1 || RegisterFile[register3] == 1)) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void slt(register1, register2, register3) {
-	if (register2 < register3) {
-		register1 = 1;
+	if (RegisterFile[register2] < RegisterFile[register3]) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void sltu(register1, register2, register3) {
-	if (register2 < register3) {
-		register1 = 1;
+	if (RegisterFile[register2] < RegisterFile[register3]) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
 
 void slti(register1, register2, number) {
-	if (register2 < number) {
-		register1 = 1;
+	if (RegisterFile[register2] < number) {
+		RegisterFile[register1] = 1;
 	}
 	else {
-		register1 = 0;
+		RegisterFile[register1] = 0;
 	}
 }
