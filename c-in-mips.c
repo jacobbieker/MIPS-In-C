@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <limits.h>
 
 // The last 0 in the RegisterFile is for the registers $0, $zero
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -193,10 +194,35 @@ int alu(int operandA, int operandB, int Operation) {
 	return result;
 }
 
+// Check for overflow function
+int safe_add(int a, int b) {
+	if (a > 0 && b > INT_MAX - a) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	else if (a < 0 && b < INT_MIN - a) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	return a + b;
+}
+
+int safe_sub(int a, int b) {
+	if (a < INT_MAX && ( b < 0 && b > a)) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	else if (a > INT_MIN && b > INT_MIN + a) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	return a - b;
+}
+
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(register2, register3) {
-	return RegisterFile[register2] + RegisterFile[register3];
+	return safe_add(RegisterFile[register2], RegisterFile[register3]);
 }
 
 unsigned int addu(register2, register3) {
@@ -204,7 +230,7 @@ unsigned int addu(register2, register3) {
 }
 
 int sub(register2, register3) {
-	return RegisterFile[register2] - RegisterFile[register3];
+	return safe_sub(RegisterFile[register2], RegisterFile[register3]);
 }
 
 unsigned int subu(register2, register3) {
@@ -212,7 +238,7 @@ unsigned int subu(register2, register3) {
 }
 
 int addi(register2, number) {
-	return RegisterFile[register2] + number;
+	return safe_add(RegisterFile[register2], number);
 }
 
 unsigned int addiu(register2, number) {
