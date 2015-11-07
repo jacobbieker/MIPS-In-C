@@ -64,52 +64,52 @@ int readmips(char* filename){
 
 //ALU function
 
-int alu(int operandA, operandB, char Operation) {
+int alu(int operandA, int operandB, int Operation) {
 	int result;
 	if (Operation == "add") {
-		
+		result = add(operandA, operandB);
 	}
 	else if (Operation == "addi") {
-
+		result = addi(operandA, operandB);
 	}
 	else if (Operation == "addu") {
-
+		result = addu(operandA, operandB);
 	}
 	else if (Operation == "addiu") {
-
+		result = addiu(operandA, operandB);
 	}
 	else if (Operation == "sub") {
-
+		result = sub(operandA, operandB);
 	}
 	else if (Operation == "subu") {
-
+		result = subu(operandA, operandB);
 	}
 	else if (Operation == "and") {
-
+		result = and(operandA, operandB);
 	}
 	else if (Operation == "andi") {
-
+		result = andi(operandA, operandB);
 	}
 	else if (Operation == "or") {
-
+		result = or(operandA, operandB);
 	}
 	else if (Operation == "ori") {
-
+		result = ori(operandA, operandB);
 	}
 	else if (Operation == "xor") {
-
+		result = xor (operandA, operandB);
 	}
 	else if (Operation == "nor") {
-
+		result = nor(operandA, operandB);
 	}
 	else if (Operation == "slt") {
-
+		result = slt(operandA, operandB);
 	}
 	else if (Operation == "slti") {
-
+		result = slti(operandA, operandB);
 	}
 	else if (Operation == "sltu") {
-
+		result = sltu(operandA, operandB);
 	}
 	else {
 		perror("Command Not Found");
@@ -120,126 +120,111 @@ int alu(int operandA, operandB, char Operation) {
 
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
-int add(register1, register2, register3) {
-	register1 = RegisterFile[register2] + RegisterFile[register3];
-	return register1;
+int add(register2, register3) {
+	return RegisterFile[register2] + RegisterFile[register3];
 }
 
-unsigned int addu(register1, register2, register3) {
-	register1 = RegisterFile[register2] + RegisterFile[register3];
-	return register1;
+unsigned int addu(register2, register3) {
+	return RegisterFile[register2] + RegisterFile[register3];
 }
 
-int sub(register1, register2, register3) {
-	register1 = RegisterFile[register2] - RegisterFile[register3];
-	return register1;
+int sub(register2, register3) {
+	return RegisterFile[register2] - RegisterFile[register3];
 }
 
-unsigned int subu(register1, register2, register3) {
-	register1 = RegisterFile[register2] - RegisterFile[register3];
-	return register1;
+unsigned int subu(register2, register3) {
+	return RegisterFile[register2] - RegisterFile[register3];
 }
 
-int addi(register1, register2, number) {
-	register1 = RegisterFile[register2] + number;
-	return register1;
+int addi(register2, number) {
+	return RegisterFile[register2] + number;
 }
 
-unsigned int addiu(register1, register2, number) {
-	register1 = RegisterFile[register2] + number;
-	return register1;
+unsigned int addiu(register2, number) {
+	return RegisterFile[register2] + number;
 }
 
 //Mult and Divide left, have to use LO and HI
 
 // Start of Logical functions
 
-int and(register1, register2, register3) {
+int and(register2, register3) {
 	if (RegisterFile[register2] == 1 && RegisterFile[register3] == 1) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int andi(register1, register2, number) {
+int andi(register2, number) {
 	if (RegisterFile[register2] == 1 && number == 1) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int or(register1, register2, register3) {
+int or(register2, register3) {
 	if (RegisterFile[register2] == 1 || RegisterFile[register3] == 1) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int ori(register1, register2, number) {
+int ori(register2, number) {
 	if (RegisterFile[register2] == 1 || number == 1) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int xor(register1, register2, register3) {
+int xor(register2, register3) {
 	if ((RegisterFile[register2] == 1 && RegisterFile[register3] != 1) || (RegisterFile[register2] != 1 && RegisterFile[register3] == 1)) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int nor(register1, register2, register3) {
+int nor(register2, register3) {
 	if (!(RegisterFile[register2] == 1 || RegisterFile[register3] == 1)) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int slt(register1, register2, register3) {
+int slt(register2, register3) {
 	if (RegisterFile[register2] < RegisterFile[register3]) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-unsigned int sltu(register1, register2, register3) {
+unsigned int sltu(register2, register3) {
 	if (RegisterFile[register2] < RegisterFile[register3]) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
 
-int slti(register1, register2, number) {
+int slti(register2, number) {
 	if (RegisterFile[register2] < number) {
-		register1 = 1;
+		return 1;
 	}
 	else {
-		register1 = 0;
+		return 0;
 	}
-	return register1;
 }
