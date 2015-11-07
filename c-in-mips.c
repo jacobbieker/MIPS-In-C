@@ -149,12 +149,7 @@ unsigned int addiu(register2, number) {
 // Start of Logical functions
 
 int and(register2, register3) {
-	if (RegisterFile[register2] == 1 && RegisterFile[register3] == 1) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (RegisterFile[register2] & RegisterFile[register3]);
 }
 
 int andi(register2, number) {
@@ -167,15 +162,11 @@ int andi(register2, number) {
 }
 
 int or(register2, register3) {
-	if (RegisterFile[register2] == 1 || RegisterFile[register3] == 1) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (RegisterFile[register2] | RegisterFile[register3]);
 }
 
 int ori(register2, number) {
+	//TODO: Allow assigning to return value
 	if (RegisterFile[register2] == 1 || number == 1) {
 		return 1;
 	}
@@ -185,21 +176,11 @@ int ori(register2, number) {
 }
 
 int xor(register2, register3) {
-	if ((RegisterFile[register2] == 1 && RegisterFile[register3] != 1) || (RegisterFile[register2] != 1 && RegisterFile[register3] == 1)) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (RegisterFile[register2] ^ RegisterFile[register3]);
 }
 
 int nor(register2, register3) {
-	if (!(RegisterFile[register2] == 1 || RegisterFile[register3] == 1)) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (~(RegisterFile[register2] | RegisterFile[register3]));
 }
 
 int slt(register2, register3) {
