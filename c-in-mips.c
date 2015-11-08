@@ -78,17 +78,23 @@ of the char* to a j_type struct to hold all the data a j_type can have. instrnum
 value of the instruction*/
 struct j_type* make_j_type(int instrnum, char* instr, int*);
 
-/*nextindexedregister(char*, int*) returns the next indexed register's register and index values from
-the instruction specified by instr at the location specified by *ptr */
-struct indexed_register* nextindexedregister(char* instr, int* ptr);
-
 /*nextregister(char*, int*) returns the value of the next register in the instruction specified by
-instr, past the location specified by *ptr */
+instr, past the location specified by *ptr 
+returns the index of the register if it is in the list of 31 registers RegisterFileNames, or 31 if
+it is the zero register, and 32 if the register was not found*/
 char nextregister(char* instr, int* ptr);
 
 /*nextint(char*, int*) returns the next integer found in the instruction specified by instr, past the
 location specified by *ptr */
 int nextint(char* instr,int* ptr);
+
+/*nextjumploc(char*, int*) returns the next jump location found in the instruction specified by instr, past
+the location specified by *ptr. requires the asm file to have been read in using readmips(char*)*/
+int nextjumploc(char* instr, int* ptr);
+
+/*nextindexedregister(char*, int*) returns the next indexed register's register and index values from
+the instruction specified by instr at the location specified by *ptr */
+struct indexed_register* nextindexedregister(char* instr, int* ptr);
 
 /*america() frees all memory that has been malloc'ed and not otherwise freed
 IF YOU HAVE CALLED malloc() MAKE SURE TO FREE THAT MEMORY. DO IT HERE IF THERE
@@ -100,30 +106,7 @@ jump_names: the array holding all jump names in char* form
 void america();
 
 int main() {
-    int i=0; char *a="jr $ra";
-    printf("%s\n", a); decodeinstruction(a);
-    a="add $v0 $v1 $a0";
-    printf("%s\n", a); decodeinstruction(a);
-    a="mult $a1 $a2";
-    printf("%s\n", a); decodeinstruction(a);
-    a="sll $a3 $t0 4";
-    printf("%s\n", a); decodeinstruction(a);
-    a="addi $t1 $t2 -2";
-    printf("%s\n", a); decodeinstruction(a);
-    a="lhu $t3 12($t4)";
-    printf("%s\n", a); decodeinstruction(a);
-    a="lui $sp 1245";
-    printf("%s\n", a); decodeinstruction(a);
-    a="j -123";
-    printf("%s\n", a); decodeinstruction(a);
-    a="jal 10000";
-    printf("%s\n", a); decodeinstruction(a);
-    a="lw $t5 -4($fp)";
-    printf("%s\n", a); decodeinstruction(a);
-    a="sw $t6 0($s0)";
-    printf("%s\n", a); decodeinstruction(a);
-    a="sub $gp $s7 $t8";
-    printf("%s\n", a); decodeinstruction(a);
+int i=0; char *a="jr $ra";
     
     readmips("bubble.asm");
     while(instructions[i]!=NULL){
@@ -135,6 +118,33 @@ int main() {
         printf("%d, %s\n", jump_locations[i], jump_names[i]);
         i++;
     }
+
+    printf("%s\n", a); decodeinstruction(a);
+    a="add $v0 $v1 $a0";
+    printf("%s\n", a); decodeinstruction(a);
+    a="mult $a1 $a2";
+    printf("%s\n", a); decodeinstruction(a);
+    a="sll $asdf $ba 4";
+    printf("%s\n", a); decodeinstruction(a);
+    a="addi $0 $zero -2";
+    printf("%s\n", a); decodeinstruction(a);
+    a="lhu $t3 12($t4)";
+    printf("%s\n", a); decodeinstruction(a);
+    a="lui $sp 1245";
+    printf("%s\n", a); decodeinstruction(a);
+    a="j main";
+    printf("%s\n", a); decodeinstruction(a);
+    a="jal next";
+    printf("%s\n", a); decodeinstruction(a);
+    a="lw $t5 -4($fp)";
+    printf("%s\n", a); decodeinstruction(a);
+    a="sw $t6 0($s0)";
+    printf("%s\n", a); decodeinstruction(a);
+    a="sub $gp $s7 $t8";
+    printf("%s\n", a); decodeinstruction(a);
+    a="bne $t0,    $t1, loop";
+    printf("%s\n", a); decodeinstruction(a);
+
     america();
     return 0;
 }
@@ -188,21 +198,25 @@ void readmips(char* filename){
 
 int controllogic(){
     int pc=0;
-    char *cur_instruction;
-    struct j_type j_instr;
-    struct i_type i_instr;
-    struct r_type r_instr;
+    char *cur_instruction; //analogous to if/id pipeline register
+    struct j_type *j_instr_ptr;
+    struct i_type *i_instr_ptr;
+    struct r_type *r_instr_ptr;
     struct Instruction_Type* instr;
-    cur_instruction = getinstruction(pc);
+    cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
     instr = decodeinstruction(cur_instruction);
-    /*if((*instr).instr<25){
-        
-    }*/
+    if((*instr).instr<25){
+        r_instr_ptr=(struct r_type*)instr;
+        alu();
+    } else if((*instr).instr<41){
+        i_instr_ptr=(struct i_type*)instr;
+    } else if((*instr).instr<43){
+        j_instr_ptr=(struct j_type*)instr;
+    }
     //alu
     //memory read/write
     //register read/write
     return 0;
-
 }
 
 char* getinstruction(int pc){
@@ -210,13 +224,13 @@ char* getinstruction(int pc){
 }
 
 struct Instruction_Type* decodeinstruction(char* instr){
-    char buffer[8]={0};
+    char buffer[8];
     int i=0; int instrnum; int* ptr = &i;
     struct j_type *j_instr_ptr;
     struct i_type *i_instr_ptr;
     struct r_type *r_instr_ptr;
     struct Instruction_Type* instr_ptr;
-
+    memset(buffer,0,sizeof(buffer));
     while(*(instr+i)!=' '){
         buffer[i]=*(instr+i);
         i++;
@@ -239,6 +253,7 @@ struct Instruction_Type* decodeinstruction(char* instr){
         printf("inum:%d,jump:%d\n",(*j_instr_ptr).instr,(*j_instr_ptr).jump_to);
         instr_ptr=(struct Instruction_Type*)j_instr_ptr;
     } else{
+        (*instr_ptr).instr=43;
         printf("Instruction not found: %s\n", instr);
     }
     
@@ -347,6 +362,8 @@ struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
     } else if(instrnum>=32){
         indreg_ptr = nextindexedregister(instr, ptr);
         i_instr.s_register=(*indreg_ptr).mem_register; i_instr.immediate=(*indreg_ptr).index;
+    } else if(instrnum>=30){
+        i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextjumploc(instr,ptr);
     } else{
         i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextint(instr, ptr);
     }
@@ -359,40 +376,16 @@ struct j_type* make_j_type(int instrnum, char* instr, int* ptr){
     struct j_type *j_type_ptr=&j_instr;
 
     j_instr.instr=instrnum;
-    j_instr.jump_to=nextint(instr, ptr);
+    j_instr.jump_to=nextjumploc(instr, ptr);
 
     return j_type_ptr;
 }
 
-struct indexed_register* nextindexedregister(char* instr, int* ptr){
-    char reg[4]={0};
-    int i=*ptr; int start; char newit;
-    struct indexed_register indreg;
-    struct indexed_register *indreg_ptr=&indreg;
-    while(isspace(*(instr+i))){i++;}
-    start=i;
-    indreg.index = strtol(instr+start,(char**)NULL,10);
-    while(*(instr+i)!='('){i++;}
-    start=i;
-    while(!isspace(*(instr+i)) && *(instr+i)!=')'){
-        reg[i-start]=*(instr+i);
-        i++;
-    }
-    i = 0;
-    for(newit=0;newit<31;newit++){
-        if(strcmp(reg,RegisterFileNames[newit])==0){
-            indreg.mem_register=newit;
-            i=1;
-            break;
-        }
-    }
-    if(i!=1){indreg.mem_register=32;}
-    return indreg_ptr;
-}
-
 char nextregister(char* instr, int* ptr){
-    char reg[4]={0, 0, 0, 0};
+    char reg[8];
     int i=*ptr; char newit = 0;
+    memset(reg,0,sizeof(reg));
+    
     while(isspace(*(instr+i))){
         i++;
     }
@@ -402,6 +395,10 @@ char nextregister(char* instr, int* ptr){
         newit++;
     }
     i++; *ptr=i;
+    
+    if(strcmp(reg,"$0")==0 || strcmp(reg,"$zero")==0){
+        return 31;
+    }
     for(newit=0;newit<31;newit++){
         if(strcmp(reg,RegisterFileNames[newit])==0){
             return newit;
@@ -416,6 +413,63 @@ int nextint(char* instr, int* ptr){
         i++;
     }
     return (int) strtol(instr+i,(char**)NULL,10);
+}
+
+int nextjumploc(char* instr, int* ptr){
+    char jump[32]; int newit=0; int i=*ptr;
+    memset(jump,0,sizeof(jump));
+    
+    while(isspace(*(instr+i))){i++;}
+    while(!isspace(*(instr+i)) && *(instr+i)!=0){
+        jump[newit]=*(instr+i);
+        i++; newit++;
+    }   
+    
+    newit=0; // redefine to check if a jump location was found
+    i=0; // redefine as iterator through jump_locations
+    while(jump_names[i]!=NULL){
+        if(strcmp(jump_names[i],jump)==0){
+            newit=1;
+            break;
+        }
+        i++;
+    }
+    if(newit!=1){
+        printf("Jump location not found: %s\n", jump);
+        return 0;
+    }
+    return jump_locations[i];
+}
+
+struct indexed_register* nextindexedregister(char* instr, int* ptr){
+    char reg[8];
+    int i=*ptr; int start; char newit;
+    struct indexed_register indreg;
+    struct indexed_register *indreg_ptr=&indreg;
+    memset(reg,0,sizeof(buffer));
+    
+    while(isspace(*(instr+i))){i++;}
+    start=i;
+    indreg.index = strtol(instr+start,(char**)NULL,10);
+    while(*(instr+i)!='('){i++;}
+    start=i;
+    while(!isspace(*(instr+i)) && *(instr+i)!=')'){
+        reg[i-start]=*(instr+i);
+        i++;
+    }
+    i = 0;
+    if(strcmp(reg,"$0")==0||strcmp(reg,"$zero")==0){
+        indreg.mem_register=31;
+    }
+    for(newit=0;newit<31;newit++){
+        if(strcmp(reg,RegisterFileNames[newit])==0){
+            indreg.mem_register=newit;
+            i=1;
+            break;
+        }
+    }
+    if(i!=1){indreg.mem_register=32;}
+    return indreg_ptr;
 }
 
 // Check for overflow function
