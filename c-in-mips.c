@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <limits.h>
 
 static int RegisterFile[31] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[31][4] = {"$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$gp", "$sp", "$fp", "$ra"};
@@ -13,6 +14,9 @@ static char* instructions[1024]; // instructions
 
 static char* jump_names[128]; // jump location names and addresses
 static int jump_locations[128];
+
+static int LO;
+static int HI;
 
 // instruction name enum and array
 typedef enum {add, addu, sub, subu, and, or, nor, xor, slt, sltu, srlv, sllv, srav, sll, srl, sra, mult, multu, Div, divu, mfcZ, mtcZ, mfhi, mflo, jr, addi, addiu, andi, ori, slti, beq, bne, lw, lh, lhu, lb, lbu, sw, sh, sb, lui, j, jal} instruction;
@@ -182,11 +186,6 @@ void readmips(char* filename){
     }
 }
 
-
-char* getinstruction(int pc){
-    return instructions[pc];
-}
-
 int controllogic(){
     int pc=0;
     char *cur_instruction;
@@ -204,6 +203,10 @@ int controllogic(){
     //register read/write
     return 0;
 
+}
+
+char* getinstruction(int pc){
+    return instructions[pc];
 }
 
 struct Instruction_Type* decodeinstruction(char* instr){
@@ -238,10 +241,82 @@ struct Instruction_Type* decodeinstruction(char* instr){
     } else{
         printf("Instruction not found: %s\n", instr);
     }
-
+    
     return instr_ptr;
 }
 
+
+//ALU function
+
+int alu(int operandA, int operandB, int Operation) {
+	int result;
+	if (Operation == "add") {
+		result = add(operandA, operandB);
+	}
+	else if (Operation == "addi") {
+		result = addi(operandA, operandB);
+	}
+	else if (Operation == "addu") {
+		result = addu(operandA, operandB);
+	}
+	else if (Operation == "addiu") {
+		result = addiu(operandA, operandB);
+	}
+	else if (Operation == "sub") {
+		result = sub(operandA, operandB);
+	}
+	else if (Operation == "subu") {
+		result = subu(operandA, operandB);
+	}
+	else if (Operation == "mult") {
+		mult(operandA, operandB);
+	}
+	else if (Operation == "multu") {
+		multu(operandA, operandB);
+	}
+	else if (Operation == "div") {
+		div(operandA, operandB);
+	}
+	else if (Operation = "divu") {
+		divu(operandA, operandB);
+	}
+	else if (Operation == "and") {
+		result = and(operandA, operandB);
+	}
+	else if (Operation == "andi") {
+		result = andi(operandA, operandB);
+	}
+	else if (Operation == "or") {
+		result = or(operandA, operandB);
+	}
+	else if (Operation == "ori") {
+		result = ori(operandA, operandB);
+	}
+	else if (Operation == "xor") {
+		result = xor (operandA, operandB);
+	}
+	else if (Operation == "nor") {
+		result = nor(operandA, operandB);
+	}
+	else if (Operation == "slt") {
+		result = slt(operandA, operandB);
+	}
+	else if (Operation == "slti") {
+		result = slti(operandA, operandB);
+	}
+	else if (Operation == "sltu") {
+		result = sltu(operandA, operandB);
+	}
+	else {
+		perror("Command Not Found");
+		exit(-1);
+	}
+	return result;
+}
+
+
+
+// decode helper functions
 struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
     struct r_type r_instr; 
     struct r_type *r_type_ptr=&r_instr;
@@ -342,6 +417,127 @@ int nextint(char* instr, int* ptr){
     }
     return (int) strtol(instr+i,(char**)NULL,10);
 }
+
+// Check for overflow function
+int safe_add(int a, int b) {
+	if (a > 0 && b > INT_MAX - a) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	else if (a < 0 && b < INT_MIN - a) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	return a + b;
+}
+
+int safe_sub(int a, int b) {
+	if (a < INT_MAX && ( b < 0 && b > a)) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	else if (a > INT_MIN && b > INT_MIN + a) {
+		perror("Overflow Error");
+		exit(-1);
+	}
+	return a - b;
+}
+
+// Start of Arithmetic functions
+//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
+int add(register2, register3) {
+	return safe_add(RegisterFile[register2], RegisterFile[register3]);
+}
+
+unsigned int addu(register2, register3) {
+	return RegisterFile[register2] + RegisterFile[register3];
+}
+
+int sub(register2, register3) {
+	return safe_sub(RegisterFile[register2], RegisterFile[register3]);
+}
+
+unsigned int subu(register2, register3) {
+	return RegisterFile[register2] - RegisterFile[register3];
+}
+
+int addi(register2, number) {
+	return safe_add(RegisterFile[register2], number);
+}
+
+unsigned int addiu(register2, number) {
+	return RegisterFile[register2] + number;
+}
+
+void mult(register2, register3) {
+	LO = ((RegisterFile[register2] * RegisterFile[register3]) << 32) >> 32;
+	HI = (RegisterFile[register2] * RegisterFile[register3]) >> 32;
+}
+
+void multu(register2, register3) {
+	LO = ((RegisterFile[register2] * RegisterFile[register3]) << 32) >> 32;
+	HI = (RegisterFile[register2] * RegisterFile[register3]) >> 32;
+}
+
+void div(register2, register3) {
+	LO = RegisterFile[register2] / RegisterFile[register3];
+	HI = RegisterFile[register2] % RegisterFile[register3];
+}
+
+void divu(register2, register3) {
+	LO = RegisterFile[register2] / RegisterFile[register3];
+	HI = RegisterFile[register2] % RegisterFile[register3];
+}
+// Start of Logical functions
+
+int and(register2, register3) {
+	return (RegisterFile[register2] & RegisterFile[register3]);
+}
+
+int andi(register2, number) {
+	return (RegisterFile[register2] & number);
+}
+
+int ori(register2, number) {
+	return (RegisterFile[register2] | number);
+}
+
+int xor(register2, register3) {
+	return (RegisterFile[register2] ^ RegisterFile[register3]);
+}
+
+int nor(register2, register3) {
+	return (~(RegisterFile[register2] | RegisterFile[register3]));
+}
+
+int slt(register2, register3) {
+	if (RegisterFile[register2] < RegisterFile[register3]) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+unsigned int sltu(register2, register3) {
+	if (RegisterFile[register2] < RegisterFile[register3]) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+int slti(register2, number) {
+	if (RegisterFile[register2] < number) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+
 
 // free everything you've malloc'ed
 void america(){
