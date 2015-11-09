@@ -260,6 +260,51 @@ struct Instruction_Type* decodeinstruction(char* instr){
     return instr_ptr;
 }
 
+// Check for overflow function
+int safe_add(int a, int b);
+
+int safe_sub(int a, int b);
+
+// Start of Arithmetic functions
+//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
+int add(int register2, int register3);
+
+unsigned int addu(int register2, int register3);
+
+int sub(int register2, int register3);
+
+unsigned int subu(int register2, int register3);
+
+int addi(int register2, int number);
+
+unsigned int addiu(int register2, int number);
+
+void mult(int register2, int register3);
+
+void multu(int register2, int register3);
+
+void mdiv(int register2, int register3);
+
+void divu(int register2, int register3);
+// Start of Logical functions
+
+int and(int register2, int register3);
+
+int andi(int register2, int number);
+
+int ori(int register2, int number);
+
+int xor(int register2, int register3);
+
+int nor(int register2, int register3);
+
+int slt(int register2, int register3);
+
+unsigned int sltu(int register2, int register3);
+
+int slti(int register2, int number);
+
+
 
 //ALU function
 
@@ -446,7 +491,7 @@ struct indexed_register* nextindexedregister(char* instr, int* ptr){
     int i=*ptr; int start; char newit;
     struct indexed_register indreg;
     struct indexed_register *indreg_ptr=&indreg;
-    memset(reg,0,sizeof(buffer));
+    memset(reg,0,sizeof(reg));
     
     while(isspace(*(instr+i))){i++;}
     start=i;
