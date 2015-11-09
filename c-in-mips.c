@@ -5,7 +5,7 @@
 #include <math.h>
 #include <limits.h>
 
-static int RegisterFile[31] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[31][4] = {"$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$gp", "$sp", "$fp", "$ra"};
 
 static int data_memory[1024]; // int values
@@ -265,61 +265,61 @@ struct Instruction_Type* decodeinstruction(char* instr){
 
 int alu(int operandA, int operandB, int Operation) {
 	int result;
-	if (Operation == "add") {
+	if (Operation == Add) {
 		result = add(operandA, operandB);
 	}
-	else if (Operation == "addi") {
+	else if (Operation == Addi) {
 		result = addi(operandA, operandB);
 	}
-	else if (Operation == "addu") {
+	else if (Operation == addu) {
 		result = addu(operandA, operandB);
 	}
-	else if (Operation == "addiu") {
+	else if (Operation == Addiu) {
 		result = addiu(operandA, operandB);
 	}
-	else if (Operation == "sub") {
+	else if (Operation == Sub) {
 		result = sub(operandA, operandB);
 	}
-	else if (Operation == "subu") {
+	else if (Operation == Subu) {
 		result = subu(operandA, operandB);
 	}
-	else if (Operation == "mult") {
+	else if (Operation == Mult) {
 		mult(operandA, operandB);
 	}
-	else if (Operation == "multu") {
+	else if (Operation == Multu) {
 		multu(operandA, operandB);
 	}
-	else if (Operation == "div") {
+	else if (Operation == MDiv) {
 		div(operandA, operandB);
 	}
-	else if (Operation = "divu") {
+	else if (Operation = Divu) {
 		divu(operandA, operandB);
 	}
-	else if (Operation == "and") {
+	else if (Operation == And) {
 		result = and(operandA, operandB);
 	}
-	else if (Operation == "andi") {
+	else if (Operation == Andi) {
 		result = andi(operandA, operandB);
 	}
-	else if (Operation == "or") {
+	else if (Operation == Or) {
 		result = or(operandA, operandB);
 	}
-	else if (Operation == "ori") {
+	else if (Operation == Ori) {
 		result = ori(operandA, operandB);
 	}
-	else if (Operation == "xor") {
+	else if (Operation == Xor) {
 		result = xor (operandA, operandB);
 	}
-	else if (Operation == "nor") {
+	else if (Operation == Nor) {
 		result = nor(operandA, operandB);
 	}
-	else if (Operation == "slt") {
+	else if (Operation == Slt) {
 		result = slt(operandA, operandB);
 	}
-	else if (Operation == "slti") {
+	else if (Operation == Slti) {
 		result = slti(operandA, operandB);
 	}
-	else if (Operation == "sltu") {
+	else if (Operation == Sltu) {
 		result = sltu(operandA, operandB);
 	}
 	else {
