@@ -19,7 +19,7 @@ static int LO;
 static int HI;
 
 // instruction name enum and array
-typedef enum {add, addu, sub, subu, and, or, nor, xor, slt, sltu, srlv, sllv, srav, sll, srl, sra, mult, multu, Div, divu, mfcZ, mtcZ, mfhi, mflo, jr, addi, addiu, andi, ori, slti, beq, bne, lw, lh, lhu, lb, lbu, sw, sh, sb, lui, j, jal} instruction;
+typedef enum {Add, Addu, Sub, Subu, And, Or, Nor, Xor, Slt, Sltu, Srlv, Sllv, Srav, Sll, Srl, Sra, Mult, Multu, MDiv, Divu, MfcZ, MtcZ, Mfhi, Mflo, Jr, Addi, Addiu, Andi, Ori, Slti, Beq, Bne, Lw, Lh, Lhu, Lb, Lbu, Sw, Sh, Sb, Lui, J, Jal} instruction;
 static char* instr_name_list[44] = {"add", "addu", "sub", "subu", "and", "or", "nor", "xor", "slt", "sltu", "srlv", "sllv", "srav", "sll", "srl", "sra", "mult", "multu", "div", "divu", "mfcZ", "mtcZ", "mfhi", "mflo", "jr", "addi", "addiu", "andi", "ori", "slti", "beq", "bne", "lw", "lh", "lhu", "lb", "lbu", "sw", "sh", "sb", "lui", "j", "jal"};
 
 struct Instruction_Type { // generic instruction type - holds instruction only
@@ -524,13 +524,17 @@ unsigned int addiu(register2, number) {
 }
 
 void mult(register2, register3) {
-	LO = ((RegisterFile[register2] * RegisterFile[register3]) << 32) >> 32;
-	HI = (RegisterFile[register2] * RegisterFile[register3]) >> 32;
+	mult1 = (long long int) RegisterFile[register2];
+	mult2 = (long long int) RegisterFile[register3];
+	LO = ((mult1 * mult2) << 32) >> 32;
+	HI = ( mult1* mult2) >> 32;
 }
 
 void multu(register2, register3) {
-	LO = ((RegisterFile[register2] * RegisterFile[register3]) << 32) >> 32;
-	HI = (RegisterFile[register2] * RegisterFile[register3]) >> 32;
+	mult1 = (long long unsigned int) RegisterFile[register2];
+	mult2 = (long long unsigned int) RegisterFile[register3];
+	LO = ((mult1 * mult2) << 32) >> 32;
+	HI = (mult1* mult2) >> 32;
 }
 
 void div(register2, register3) {
