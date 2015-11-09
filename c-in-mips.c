@@ -266,7 +266,6 @@ int safe_add(int a, int b);
 int safe_sub(int a, int b);
 
 // Start of Arithmetic functions
-//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(int register2, int register3);
 
 unsigned int addu(int register2, int register3);
