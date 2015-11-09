@@ -271,7 +271,7 @@ int alu(int operandA, int operandB, int Operation) {
 	else if (Operation == Addi) {
 		result = addi(operandA, operandB);
 	}
-	else if (Operation == addu) {
+	else if (Operation == Addu) {
 		result = addu(operandA, operandB);
 	}
 	else if (Operation == Addiu) {
@@ -290,7 +290,7 @@ int alu(int operandA, int operandB, int Operation) {
 		multu(operandA, operandB);
 	}
 	else if (Operation == MDiv) {
-		div(operandA, operandB);
+		mdiv(operandA, operandB);
 	}
 	else if (Operation = Divu) {
 		divu(operandA, operandB);
@@ -499,76 +499,80 @@ int safe_sub(int a, int b) {
 
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
-int add(register2, register3) {
+int add(int register2, int register3) {
 	return safe_add(RegisterFile[register2], RegisterFile[register3]);
 }
 
-unsigned int addu(register2, register3) {
+unsigned int addu(int register2, int register3) {
 	return RegisterFile[register2] + RegisterFile[register3];
 }
 
-int sub(register2, register3) {
+int sub(int register2, int register3) {
 	return safe_sub(RegisterFile[register2], RegisterFile[register3]);
 }
 
-unsigned int subu(register2, register3) {
+unsigned int subu(int register2, int register3) {
 	return RegisterFile[register2] - RegisterFile[register3];
 }
 
-int addi(register2, number) {
+int addi(int register2, int number) {
 	return safe_add(RegisterFile[register2], number);
 }
 
-unsigned int addiu(register2, number) {
+unsigned int addiu(int register2, int number) {
 	return RegisterFile[register2] + number;
 }
 
-void mult(register2, register3) {
+void mult(int register2, int register3) {
+	long long unsigned int mult1;
+	long long unsigned int mult2;
 	mult1 = (long long int) RegisterFile[register2];
 	mult2 = (long long int) RegisterFile[register3];
 	LO = ((mult1 * mult2) << 32) >> 32;
 	HI = ( mult1* mult2) >> 32;
 }
 
-void multu(register2, register3) {
+void multu(int register2, int register3) {
+	long long unsigned int mult1;
+	long long unsigned int mult2;
 	mult1 = (long long unsigned int) RegisterFile[register2];
 	mult2 = (long long unsigned int) RegisterFile[register3];
 	LO = ((mult1 * mult2) << 32) >> 32;
 	HI = (mult1* mult2) >> 32;
 }
 
-void div(register2, register3) {
+void mdiv(int register2, int register3) {
 	LO = RegisterFile[register2] / RegisterFile[register3];
 	HI = RegisterFile[register2] % RegisterFile[register3];
 }
 
-void divu(register2, register3) {
+void divu(int register2, int register3) {
 	LO = RegisterFile[register2] / RegisterFile[register3];
 	HI = RegisterFile[register2] % RegisterFile[register3];
 }
 // Start of Logical functions
 
-int and(register2, register3) {
+int and(int register2, int register3) {
 	return (RegisterFile[register2] & RegisterFile[register3]);
 }
 
-int andi(register2, number) {
+int andi(int register2, int number) {
 	return (RegisterFile[register2] & number);
 }
 
-int ori(register2, number) {
+int ori(int register2, int number) {
 	return (RegisterFile[register2] | number);
 }
 
-int xor(register2, register3) {
+int xor(int register2, int register3) {
 	return (RegisterFile[register2] ^ RegisterFile[register3]);
 }
 
-int nor(register2, register3) {
+int nor(int register2, int register3) {
 	return (~(RegisterFile[register2] | RegisterFile[register3]));
 }
 
-int slt(register2, register3) {
+int slt(int register2, int register3) {
 	if (RegisterFile[register2] < RegisterFile[register3]) {
 		return 1;
 	}
@@ -577,7 +581,7 @@ int slt(register2, register3) {
 	}
 }
 
-unsigned int sltu(register2, register3) {
+unsigned int sltu(int register2, int register3) {
 	if (RegisterFile[register2] < RegisterFile[register3]) {
 		return 1;
 	}
@@ -586,7 +590,7 @@ unsigned int sltu(register2, register3) {
 	}
 }
 
-int slti(register2, number) {
+int slti(int register2, int number) {
 	if (RegisterFile[register2] < number) {
 		return 1;
 	}
