@@ -6,7 +6,7 @@
 #include <limits.h>
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-static char RegisterFileNames[31][4] = {"$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$gp", "$sp", "$fp", "$ra"};
+static char RegisterFileNames[31][4] = {"$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
 
 static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
@@ -142,13 +142,11 @@ void multu(int register2, int register3);
 void mdiv(int register2, int register3);
 
 void divu(int register2, int register3);
-// Start of Logical functions
 
+// Start of Logical functions
 int and(int register2, int register3);
 
 int andi(int register2, int number);
-
-int or(int register2, int register3);
 
 int ori(int register2, int number);
 
@@ -163,7 +161,6 @@ unsigned int sltu(int register2, int register3);
 int slti(int register2, int number);
 
 
-
 /*america() frees all memory that has been malloc'ed and not otherwise freed
 IF YOU HAVE CALLED malloc() MAKE SURE TO FREE THAT MEMORY. DO IT HERE IF THERE
 IS NO BETTER PLACE. Thanks.
@@ -174,7 +171,7 @@ jump_names: the array holding all jump names in char* form
 void america();
 
 int main() {
-int i=0; char *a="jr $ra";
+int i=0; char *a;
     
     readmips("bubble.asm");
     while(instructions[i]!=NULL){
@@ -187,24 +184,17 @@ int i=0; char *a="jr $ra";
         i++;
     }
 
-    printf("%s\n", a); decodeinstruction(a);
-    a="add $v0 $v1 $a0";
-    printf("%s\n", a); decodeinstruction(a);
-    a="mult $a1 $a2";
-    printf("%s\n", a); decodeinstruction(a);
-    a="sll $asdf $ba 4";
-    printf("%s\n", a); decodeinstruction(a);
-    a="addi $0 $zero -2";
-    printf("%s\n", a); decodeinstruction(a);
-    a="lhu $t3 12($t4)";
-    printf("%s\n", a); decodeinstruction(a);
-    a="lui $sp 1245";
-    printf("%s\n", a); decodeinstruction(a);
-    a="j main";
-    printf("%s\n", a); decodeinstruction(a);
-    a="jal next";
-    printf("%s\n", a); decodeinstruction(a);
-    a="lw $t5 -4($fp)";
+    RegisterFile[7]=2; RegisterFile[8]=4;
+    execute_r((struct r_type*)decodeinstruction("add $t2, $t1, $t0"));
+    execute_i((struct i_type*)decodeinstruction("addi $t2, $t2, 10"));
+    execute_j((struct j_type*)decodeinstruction("jal    loop"), 20);
+    execute_r((struct r_type*)decodeinstruction("jr $t1"));
+    execute_i((struct i_type*)decodeinstruction("sw $t0 12($t1)"));
+    execute_i((struct i_type*)decodeinstruction("lw $t0 12($t1)"));
+    printf("%d %d\n", HI, LO);
+    execute_r((struct r_type*)decodeinstruction("mult $t0 $t1"));
+    printf("%d %d\n", HI, LO);
+    /*a="lw $t5 -4($fp)";
     printf("%s\n", a); decodeinstruction(a);
     a="sw $t6 0($s0)";
     printf("%s\n", a); decodeinstruction(a);
@@ -212,7 +202,7 @@ int i=0; char *a="jr $ra";
     printf("%s\n", a); decodeinstruction(a);
     a="bne $t0,    $t1, loop";
     printf("%s\n", a); decodeinstruction(a);
-
+    */
     america();
     return 0;
 }
@@ -271,21 +261,24 @@ int controllogic(){
     struct i_type *i_instr_ptr;
     struct r_type *r_instr_ptr;
     struct Instruction_Type* instr;
-    cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
-    instr = decodeinstruction(cur_instruction);
-    if((*instr).instr<25){
-        r_instr_ptr=(struct r_type*)instr;
-        execute_r(r_instr_ptr);
-    } else if((*instr).instr<41){
-        i_instr_ptr=(struct i_type*)instr;
-        execute_i(i_instr_ptr);
-    } else if((*instr).instr<43){
-        j_instr_ptr=(struct j_type*)instr;
-        execute_j(j_instr_ptr,pc);
+
+    while(1){
+        cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
+        instr = decodeinstruction(cur_instruction);
+        if((*instr).instr<25){
+            r_instr_ptr=(struct r_type*)instr;
+            execute_r(r_instr_ptr);
+        } else if((*instr).instr<41){
+            i_instr_ptr=(struct i_type*)instr;
+            execute_i(i_instr_ptr);
+        } else if((*instr).instr<43){
+            j_instr_ptr=(struct j_type*)instr;
+            execute_j(j_instr_ptr,pc);
+        }
+        //memory read/write
+        //register write
+        return 0;
     }
-    //memory read/write
-    //register write
-    return 0;
 }
 
 char* getinstruction(int pc){
@@ -333,7 +326,8 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
     struct r_type r_instr = *r_type_ptr;
     struct exmem exmem_reg;
     struct exmem* exmem_ptr = &exmem_reg;
-    
+    memset(exmem_ptr, 0, sizeof(exmem_reg));
+
     exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
     if(r_instr.instr<13){ // all normal 3 register r types
         exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.s_register2, r_instr.instr);
@@ -349,6 +343,7 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
         exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
     }
 
+    printf("instr:%d,alu:%d,dest:%d,branch:%d,ind:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch,exmem_reg.index);
     return exmem_ptr;
 }
 
@@ -356,12 +351,17 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
     struct i_type i_instr = *i_type_ptr;
     struct exmem exmem_reg;
     struct exmem* exmem_ptr = &exmem_reg;
-    
+    memset(exmem_ptr, 0, sizeof(exmem_reg));
+
     exmem_reg.instrnum=i_instr.instr; exmem_reg.will_branch=0;
     if(i_instr.instr==40){ //lui
         exmem_reg.alu_result=i_instr.immediate << 16;
         exmem_reg.dest_register=i_instr.dest_register;
-    } else if(i_instr.instr>=32){ // all standard memory access
+    } else if(i_instr.instr>=37){ // all standard memory stores
+        exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
+        exmem_reg.dest_register=alu(i_instr.dest_register,0,Addi);
+        exmem_reg.index=i_instr.immediate;
+    } else if(i_instr.instr>=32){ // all standard memory loads
         exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
         exmem_reg.dest_register=i_instr.dest_register;
         exmem_reg.index=i_instr.immediate;
@@ -374,6 +374,7 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
         exmem_reg.dest_register=i_instr.dest_register;
     }
 
+    printf("instr:%d,alu:%d,dest:%d,branch:%d,ind:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch,exmem_reg.index);
     return exmem_ptr;
 }
 
@@ -381,7 +382,8 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
     struct j_type j_instr = *j_type_ptr;
     struct exmem exmem_reg;
     struct exmem* exmem_ptr = &exmem_reg;
-    
+    memset(exmem_ptr,0,sizeof(exmem_reg));
+
     exmem_reg.instrnum=j_instr.instr;
     if(j_instr.instr==41){ // j
         exmem_reg.will_branch=j_instr.jump_to;
@@ -390,6 +392,7 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
         exmem_reg.alu_result=pc; exmem_reg.dest_register=30;
     }
 
+    printf("instr:%d,alu:%d,dest:%d,branch:%d,ind:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch,exmem_reg.index);
     return exmem_ptr;
 }
 
@@ -585,6 +588,7 @@ struct indexed_register* nextindexedregister(char* instr, int* ptr){
     start=i;
     indreg.index = strtol(instr+start,(char**)NULL,10);
     while(*(instr+i)!='('){i++;}
+    i++;
     start=i;
     while(!isspace(*(instr+i)) && *(instr+i)!=')'){
         reg[i-start]=*(instr+i);
