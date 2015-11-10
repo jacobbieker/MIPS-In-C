@@ -556,6 +556,7 @@ struct j_type* make_j_type(int instrnum, char* instr, int* ptr){
     return j_type_ptr;
 }
 
+
 char nextregister(char* instr, int* ptr){
     char reg[8];
     int i=*ptr; char newit = 0;
@@ -728,28 +729,42 @@ void divu(int register2, int register3) {
 }
 
 
+
 // Start Data Transfer functions
 
-// Read in Load Word memory
+// Memory Stage helpers
+
+// Read in Load Word Memory (Memory Stage)
 int lw_read(int register2, int C) {
-	return data_memory[RegisterFile[register2] + C/4];
+	return data_memory[register2 + C/4];
 }
 
-// Load Word
-int lw(int register1, int register2, int C) {
-	return RegisterFile[register1] = lw_read(register2, C);
-}
-
-// Read in Load Halfword memory
+// Read in Load Halfword Memory (Memory Stage)
 short lh_read(int register2, int C) {
-	int a = data_memory[RegisterFile[register2] + C/4]
-	short b = (short)a 
+	int a = data_memory[register2 + C/4];
+	short b = (short)a;
 	// Need to figure out which half to get (distinguish from each other)
 	return b;
 }
 
-// Load Halfword
-short lh(short register1, int register2, int C) {
+// Read in Byte Memory (Memory Stage)
+char lb_read(int register2, int C) {
+	int a = data_memory[register2 + C/4];
+	char b = a + '0';
+	return b;
+}
+
+
+
+// WriteBack Stage helpers
+
+// Load Word (WriteBack Stage)
+int lw_write(int register1, int value) {
+	return RegisterFile[register1] = //(an intermediate register yet to be specified);
+}
+
+// Load Halfword (WriteBack Stage)
+short lh_write(short register1, int register2, int C) {
 	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > -256){ // 256 for the maximum a short can contain
 		perror("Overflow Error");
 		exit(-1);
@@ -759,7 +774,7 @@ short lh(short register1, int register2, int C) {
 	}
 }
 
-// Load Halfword Unsigned
+// Load Halfword Unsigned (WriteBack Stage)
 unsigned short lhu(int register2, int register3, int C){
 	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > -256){ // 256 for the maximum a short can contain
 		perror("Overflow Error");
@@ -770,14 +785,8 @@ unsigned short lhu(int register2, int register3, int C){
 	}
 }
 
-// Read in Byte memory
-char lb_read(int register2, int C) {
-	int a = data_memory[RegisterFile[register2] + C/4]
-	char b = a + '0';
-	return b;
-}
 
-// Load Byte
+// Load Byte (WriteBack Stage)
 char lb(int register2, int register3, int C) {
 	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
 		perror("Overflow Error");
@@ -788,7 +797,7 @@ char lb(int register2, int register3, int C) {
 	}
 }
 
-// Load Byte Unsigned
+// Load Byte Unsigned (WriteBack Stage)
 unsigned char lbu(int register1, int register2, int C){
 	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
 		perror("Overflow Error");
@@ -810,44 +819,38 @@ short sh(int register1, int register2, int C) {
 }
 
 // Store Byte
-char sb(int register2, int register3, int C){
+char sb(int register1, int register2, int C){
 	// The RegisterFile[register1] is an int and would have conflicting types
 	return lb_read(register2, C) = RegisterFile[register1];
 }
 
-// Load Upper Immediate 
+// Load Upper Immediate (WriteBack Stage)
 int lui(int register1, int C) {
-	if (C < 65536) { // C can be max value of 2^16-1
-		return RegisterFile[register1] = C << 16;
-	} else {
-		perror("Overflow Error");
-		exit(-1);
-	}
+		return RegisterFile[register1] = C; //already shifted 16 bits
 }
 
-// Move from HI
+// Move from HI (WriteBack Stage)
 int mfhi(int register2) {
 	return RegisterFile[register2] = HI;
 }
 
-// Move from LO
+// Move from LO (WriteBack Stage)
 int mflo(int register2) {
 	return RegisterFile[register2] = LO;
 }
 
 /*
-// Move from Control Registar 
-//not sure what to do with this yet
-int mfcZ(int register2, int register3) {
+// Move from Control Registar (WriteBack Stage)
+int mfcZ(int register1, int register2) {
 	return 0;
 }
 
-// Move to Control Registar
-//not sure that to do with this yet
-int mtcZ(int register2, int register3) {
+// Move to Control Registar (WriteBack Stage)
+int mtcZ(int register1, int register2) {
 	return 0;
 }
 */
+
 
 
 
@@ -903,6 +906,52 @@ int slti(int register2, int number) {
 		return 0;
 	}
 }
+
+
+/*
+___________________________________________________________
+|  |*  *  *  *  *  *|--------------------------------------|
+|  |  *  *  *  *  * |                                      |
+|  |*  *  *  *  *  *|--------------------------------------|
+|  |  *  *  *  *  * |                                      |
+|  |*  *  *  *  *  *|--------------------------------------|
+|  |  *  *  *  *  * |                                      |
+|  |*  *  *  *  *  *|--------------------------------------|
+|  |  *  *  *  *  * |                                      |
+|  |*  *  *  *  *  *|--------------------------------------|
+|  |----------------                                       |
+|  |                                                       |
+|  |-------------------------------------------------------|
+|  |                                                       |
+|  |-------------------------------------------------------|
+|  |                                                       |
+|  |-------------------------------------------------------
+|  |
+|  |
+|  |   
+|  |
+|  |
+|  | 
+|  |
+|  |
+|  | 
+|  |                   ~   MERICA.   ~
+|  |
+|  | 
+|  |
+|  |
+|  | 
+|  |
+|  |
+|  | 
+|  |
+|  |
+|  | 
+|  |
+|  |
+|  | 
+
+*/
 
 
 
