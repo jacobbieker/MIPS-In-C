@@ -182,9 +182,9 @@ short lh_write(short register1, int value);
 
 unsigned short lhu(int register2, int value);
 
-char lb(int register2, int register3, int C);
+char lb(int register1, int value);
 
-unsigned char lbu(int register1, int register2, int C);
+unsigned char lbu(int register1, int value);
 
 void sw(int register1, int registerAndIndex);
 
