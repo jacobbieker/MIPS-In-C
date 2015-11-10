@@ -9,7 +9,6 @@ static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 static char RegisterFileNames[31][4] = {"$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$gp", "$sp", "$fp", "$ra"};
 
 static int data_memory[1024]; // int values
-static char* string_memory[1024]; // string values
 static char* instructions[1024]; // instructions
 
 static char* jump_names[128]; // jump location names and addresses
@@ -51,6 +50,14 @@ struct indexed_register { //for modular parsing of indexed registers (return bot
     int index;
 };
 
+struct exmem {
+    int instrnum;
+    int alu_result;
+    int dest_register;
+    int will_branch;
+    int index;
+};
+
 /* readmips(char*) reads the assembly file specified by filename into the instructions data array*/
 void readmips(char* filename);
 
@@ -62,6 +69,20 @@ char* getinstruction(int pc);
 Instruction_Type, converting the function, any registers, and any immediate values to integers
 that are easier to operate on*/
 struct Instruction_Type* decodeinstruction(char* instr);
+
+/*execute_r(struct r_type*) takes a pointer to an r_type instruction and uses the data within to
+execute the instruction and put the correct data into an exmem register struct, which can then be
+passed to the memory function*/
+struct exmem* execute_r(struct r_type*);
+
+/*execute_i(struct i_type*) takes a pointer to an i_type instruction and uses the data within to
+execute the instruction and put the correct data into an exmem register struct, which can then be
+passed to the memory function*/
+struct exmem* execute_i(struct i_type*);
+
+/*execute_j(struct j_type*, int pc) takes a pointer to a j_type instruction and the value of the program
+counter and puts the correct data into an exmem register struct, which can then b passed to the memory function*/
+struct exmem* execute_j(struct j_type*, int pc);
 
 /*make_r_type(int, char*, int*) takes the instruction specified by instr, and converts the remainder
 of the char* to an r_type struct to hold all the data an r_type can have. instrnum holds the enum
@@ -95,6 +116,51 @@ int nextjumploc(char* instr, int* ptr);
 /*nextindexedregister(char*, int*) returns the next indexed register's register and index values from
 the instruction specified by instr at the location specified by *ptr */
 struct indexed_register* nextindexedregister(char* instr, int* ptr);
+
+// Check for overflow function
+int safe_add(int a, int b);
+
+int safe_sub(int a, int b);
+
+// Start of Arithmetic functions
+int add(int register2, int register3);
+
+unsigned int addu(int register2, int register3);
+
+int sub(int register2, int register3);
+
+unsigned int subu(int register2, int register3);
+
+int addi(int register2, int number);
+
+unsigned int addiu(int register2, int number);
+
+void mult(int register2, int register3);
+
+void multu(int register2, int register3);
+
+void mdiv(int register2, int register3);
+
+void divu(int register2, int register3);
+// Start of Logical functions
+
+int and(int register2, int register3);
+
+int andi(int register2, int number);
+
+int ori(int register2, int number);
+
+int xor(int register2, int register3);
+
+int nor(int register2, int register3);
+
+int slt(int register2, int register3);
+
+unsigned int sltu(int register2, int register3);
+
+int slti(int register2, int number);
+
+
 
 /*america() frees all memory that has been malloc'ed and not otherwise freed
 IF YOU HAVE CALLED malloc() MAKE SURE TO FREE THAT MEMORY. DO IT HERE IF THERE
@@ -207,15 +273,16 @@ int controllogic(){
     instr = decodeinstruction(cur_instruction);
     if((*instr).instr<25){
         r_instr_ptr=(struct r_type*)instr;
-        alu();
+        execute_r(r_instr_ptr);
     } else if((*instr).instr<41){
         i_instr_ptr=(struct i_type*)instr;
+        execute_i(i_instr_ptr);
     } else if((*instr).instr<43){
         j_instr_ptr=(struct j_type*)instr;
+        execute_j(j_instr_ptr,pc);
     }
-    //alu
     //memory read/write
-    //register read/write
+    //register write
     return 0;
 }
 
@@ -260,50 +327,69 @@ struct Instruction_Type* decodeinstruction(char* instr){
     return instr_ptr;
 }
 
-// Check for overflow function
-int safe_add(int a, int b);
+struct exmem* execute_r(struct r_type *r_type_ptr){
+    struct r_type r_instr = *r_type_ptr;
+    struct exmem exmem_reg;
+    struct exmem* exmem_ptr = &exmem_reg;
+    
+    exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
+    if(r_instr.instr<13){ // all normal 3 register r types
+        exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.s_register2, r_instr.instr);
+        exmem_reg.dest_register = r_instr.dest_register;
+    } else if(r_instr.instr<16){ // shift operations
+        exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.shamt, r_instr.instr);
+        exmem_reg.dest_register = r_instr.dest_register;
+    } else if(r_instr.instr<22){ // mult and similar
+        exmem_reg.alu_result = alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
+    } else if(r_instr.instr<24){ // mfhi and mflo
+        exmem_reg.dest_register = r_instr.dest_register;
+    } else{ // jr
+        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
+    }
 
-int safe_sub(int a, int b);
+    return exmem_ptr;
+}
 
-// Start of Arithmetic functions
-//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
-int add(int register2, int register3);
+struct exmem* execute_i(struct i_type *i_type_ptr){
+    struct i_type i_instr = *i_type_ptr;
+    struct exmem exmem_reg;
+    struct exmem* exmem_ptr = &exmem_reg;
+    
+    exmem_reg.instrnum=i_instr.instr; exmem_reg.will_branch=0;
+    if(i_instr.instr==40){ //lui
+        exmem_reg.alu_result=i_instr.immediate << 16;
+        exmem_reg.dest_register=i_instr.dest_register;
+    } else if(i_instr.instr>=32){ // all standard memory access
+        exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
+        exmem_reg.dest_register=i_instr.dest_register;
+        exmem_reg.index=i_instr.immediate;
+    } else if(i_instr.instr==31){ // bne
+        exmem_reg.will_branch=i_instr.immediate*(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt));
+    } else if(i_instr.instr==30){ // beq
+        exmem_reg.will_branch=i_instr.immediate*(1-(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt)));
+    } else{ //just some alu operations
+        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
+        exmem_reg.dest_register=i_instr.dest_register;
+    }
 
-unsigned int addu(int register2, int register3);
+    return exmem_ptr;
+}
 
-int sub(int register2, int register3);
+struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
+    struct j_type j_instr = *j_type_ptr;
+    struct exmem exmem_reg;
+    struct exmem* exmem_ptr = &exmem_reg;
+    
+    exmem_reg.instrnum=j_instr.instr;
+    if(j_instr.instr==41){ // j
+        exmem_reg.will_branch=j_instr.jump_to;
+    } else{ // jal
+        exmem_reg.will_branch=j_instr.jump_to;
+        exmem_reg.alu_result=pc; exmem_reg.dest_register=30;
+    }
 
-unsigned int subu(int register2, int register3);
-
-int addi(int register2, int number);
-
-unsigned int addiu(int register2, int number);
-
-void mult(int register2, int register3);
-
-void multu(int register2, int register3);
-
-void mdiv(int register2, int register3);
-
-void divu(int register2, int register3);
-// Start of Logical functions
-
-int and(int register2, int register3);
-
-int andi(int register2, int number);
-
-int ori(int register2, int number);
-
-int xor(int register2, int register3);
-
-int nor(int register2, int register3);
-
-int slt(int register2, int register3);
-
-unsigned int sltu(int register2, int register3);
-
-int slti(int register2, int number);
-
+    return exmem_ptr;
+}
 
 
 //ALU function
@@ -337,7 +423,7 @@ int alu(int operandA, int operandB, int Operation) {
 	else if (Operation == MDiv) {
 		mdiv(operandA, operandB);
 	}
-	else if (Operation = Divu) {
+	else if (Operation == Divu) {
 		divu(operandA, operandB);
 	}
 	else if (Operation == And) {
@@ -368,7 +454,7 @@ int alu(int operandA, int operandB, int Operation) {
 		result = sltu(operandA, operandB);
 	}
 	else {
-		perror("Command Not Found");
+		perror("Command Not Found\n");
 		exit(-1);
 	}
 	return result;
@@ -603,6 +689,10 @@ int and(int register2, int register3) {
 
 int andi(int register2, int number) {
 	return (RegisterFile[register2] & number);
+}
+
+int or(register2, register3) {
+    return (RegisterFile[register2] | RegisterFile[register3]);
 }
 
 int ori(int register2, int number) {
