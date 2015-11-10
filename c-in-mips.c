@@ -10,7 +10,7 @@ static char RegisterFileNames[31][4] = {"$at", "$v0", "$v1", "$a0", "$a1", "$a2"
 
 static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
-static int controlRegisterZ[1024] // Control RegisterZ
+static int controlRegisterZ[1024]; // Control RegisterZ
 
 static char* jump_names[128]; // jump location names and addresses
 static int jump_locations[128];
@@ -186,11 +186,11 @@ char lb(int register2, int register3, int C);
 
 unsigned char lbu(int register1, int register2, int C);
 
-int sw(int register1, int register2, int C);
+void sw(int register1, int register2, int C);
 
-short sh(int register1, int register2, int C);
+void sh(int register1, int register2, int C);
 
-char sb(int register1, int register2, int C);
+void sb(int register1, int register2, int C);
 
 int lui(int register1, int C);
 
@@ -763,8 +763,8 @@ char lb_read(int register2, int C) {
 // WriteBack Stage helpers
 
 // Load Word (WriteBack Stage)
-int lw_write(int register1, int value) {
-	return RegisterFile[register1] = //(an intermediate register yet to be specified);
+int register_write(int register1, int value) {
+	return RegisterFile[register1] = value;
 }
 
 // Load Halfword (WriteBack Stage)
@@ -779,54 +779,67 @@ short lh_write(short register1, int register2, int C) {
 }
 
 // Load Halfword Unsigned (WriteBack Stage)
-unsigned short lhu(int register2, int register3, int C) {
+unsigned short lhu(int register2, int value) {
 	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > 0){ // 256 for the maximum a short can contain
 		perror("Overflow Error");
 		exit(-1);
 	} else {
 		// there is conflicting types here
-		return RegisterFile[register1] = //(an intermediate register yet to be specified);
+		return RegisterFile[register1] = value;
 	}
 }
 
 
 // Load Byte (WriteBack Stage)
-char lb(int register2, int register3, int C) {
+char lb(int register1, int value) {
 	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
 		perror("Overflow Error");
 		exit(-1);
 	} else {
 		// there is conflicting types here
-		return RegisterFile[register1] = lb_read(register2, C);
+		return RegisterFile[register1] = value;
 	}
 }
 
 // Load Byte Unsigned (WriteBack Stage)
-unsigned char lbu(int register1, int register2, int C){
+unsigned char lbu(int register1, int value) {
 	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > 0){ // 10 for the maximum a char can contain
 		perror("Overflow Error");
 		exit(-1);
 	} else {
 		// there is conflicting types here
-		return RegisterFile[register1] = lb_read(register2, C);
+		return RegisterFile[register1] = value;
 	}
 }
 
 // Store Word (WriteBack Stage)
-int sw(int register1, int register2, int C) {
-	return data_memory[register1 + C/4] = RegisterFile[register1];
+void sw(int register1, int registerAndIndex) {
+	data_memory[registerAndIndex/4] = data_memory[registerAndIndex/4] = register1;
 }
 
+
 // Store Halfword (WriteBack Stage)
-short sh(int register1, int register2, int C) {
-	return lh_read(register2, C) = RegisterFile[register1];
+void sh(int register1, int registerAndIndex) {
+	if (registerAndIndex % 4 == 2 || registerAndIndex % 4 == 3) {
+		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] >> 16) << 16) + register1;
+	} else if (registerAndIndex % 4 == 0 || registerAndIndex % 4 == 1) {
+		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 16) >> 16) + (register1 << 16);
+	}
 }
 
 // Store Byte (WriteBack Stage)
-char sb(int register1, int register2, int C) {
-	// The RegisterFile[register1] is an int and would have conflicting types
-	return lb_read(register2, C) = RegisterFile[register1];
+void sb(int register1, int registerAndIndex) {
+	if (registerAndIndex % 4 == 0) {
+		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 8) >> 16;) + (register1 << 24);
+	} else if (registerAndIndex % 4 == 1) {
+		data_memory[registerAndIndex/4] = ((data_memory[rregisterAndIndex/4] << 16) >> 16) + ((data_memory[registerAndIndex/4] >> 24) << 24) + (register1 << 16);
+	} else if (registerAndIndex % 4 == 2) {
+		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 24) >> 24) + ((data_memory[registerAndIndex/4] >> 16) << 16) + (register1 << 8);
+	} else if (registerAndIndex % 4 == 3) {
+		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] >> 8) << 8) + register1;
+	}
 }
+
 
 // Load Upper Immediate (WriteBack Stage)
 int lui(int register1, int C) {
@@ -843,7 +856,7 @@ int mflo(int register2) {
 	return RegisterFile[register2] = LO;
 }
 
-
+/*
 // Move from Control Registar (WriteBack Stage)
 int mfcZ(int register1, int register2) {
 	return RegisterFile[register1] = controlRegisterZ[register2];
@@ -851,9 +864,9 @@ int mfcZ(int register1, int register2) {
 
 // Move to Control Registar (WriteBack Stage)
 int mtcZ(int register1, int register2) {
-	return controlRegisterZ[register2] = RegisterFile[register1];
+	return controlRegisterZ[register2] = register1;
 }
-
+*/
 
 
 
