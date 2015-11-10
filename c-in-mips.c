@@ -148,6 +148,8 @@ int and(int register2, int register3);
 
 int andi(int register2, int number);
 
+int or(int register2, int register3);
+
 int ori(int register2, int number);
 
 int xor(int register2, int register3);
