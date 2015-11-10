@@ -163,6 +163,43 @@ unsigned int sltu(int register2, int register3);
 int slti(int register2, int number);
 
 
+// Start of Data Transfer functions
+
+int lw_read(int register2, int C);
+
+int lw(int register1, int register2, int C);
+
+short lh_read(int register2, int C);
+
+short lh(short register1, int register2, int C);
+
+unsigned short lhu(int register2, int register3, int C);
+
+char lb_read(int register2, int C);
+
+char lb(int register2, int register3, int C);
+
+unsigned char lbu(int register1, int register2, int C);
+
+int sw(int register1, int register2, int C);
+
+short sh(int register1, int register2, int C);
+
+char sb(int register2, int register3, int C);
+
+int lui(int register1, int C);
+
+int mfhi(int register2);
+
+int mflo(int register2);
+
+/*
+int mfcZ(int register2, int register3);
+
+int mtcZ(int register2, int register3)
+*/
+
+
 /*america() frees all memory that has been malloc'ed and not otherwise freed
 IF YOU HAVE CALLED malloc() MAKE SURE TO FREE THAT MEMORY. DO IT HERE IF THERE
 IS NO BETTER PLACE. Thanks.
@@ -689,6 +726,131 @@ void divu(int register2, int register3) {
 	LO = RegisterFile[register2] / RegisterFile[register3];
 	HI = RegisterFile[register2] % RegisterFile[register3];
 }
+
+
+// Start Data Transfer functions
+
+// Read in Load Word memory
+int lw_read(int register2, int C) {
+	return data_memory[RegisterFile[register2] + C/4];
+}
+
+// Load Word
+int lw(int register1, int register2, int C) {
+	return RegisterFile[register1] = lw_read(register2, C);
+}
+
+// Read in Load Halfword memory
+short lh_read(int register2, int C) {
+	int a = data_memory[RegisterFile[register2] + C/4]
+	short b = (short)a 
+	// Need to figure out which half to get (distinguish from each other)
+	return b;
+}
+
+// Load Halfword
+short lh(short register1, int register2, int C) {
+	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > -256){ // 256 for the maximum a short can contain
+		perror("Overflow Error");
+		exit(-1);
+	} else {
+		// there is conflicting types here
+		return RegisterFile[register1] = lh_read(register2, C);
+	}
+}
+
+// Load Halfword Unsigned
+unsigned short lhu(int register2, int register3, int C){
+	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > -256){ // 256 for the maximum a short can contain
+		perror("Overflow Error");
+		exit(-1);
+	} else {
+		// there is conflicting types here
+		return RegisterFile[register1] = lh_read(register2, C);
+	}
+}
+
+// Read in Byte memory
+char lb_read(int register2, int C) {
+	int a = data_memory[RegisterFile[register2] + C/4]
+	char b = a + '0';
+	return b;
+}
+
+// Load Byte
+char lb(int register2, int register3, int C) {
+	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
+		perror("Overflow Error");
+		exit(-1);
+	} else {
+		// there is conflicting types here
+		return RegisterFile[register1] = lb_read(register2, C);
+	}
+}
+
+// Load Byte Unsigned
+unsigned char lbu(int register1, int register2, int C){
+	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
+		perror("Overflow Error");
+		exit(-1);
+	} else {
+		// there is conflicting types here
+		return RegisterFile[register1] = lb_read(register2, C);
+	}
+}
+
+// Store Word
+int sw(int register1, int register2, int C) {
+	return lw_read(register2, C) = RegisterFile[register1];
+}
+
+// Store Halfword
+short sh(int register1, int register2, int C) {
+	return lh_read(register2, C) = RegisterFile[register1];
+}
+
+// Store Byte
+char sb(int register2, int register3, int C){
+	// The RegisterFile[register1] is an int and would have conflicting types
+	return lb_read(register2, C) = RegisterFile[register1];
+}
+
+// Load Upper Immediate 
+int lui(int register1, int C) {
+	if (C < 65536) { // C can be max value of 2^16-1
+		return RegisterFile[register1] = C << 16;
+	} else {
+		perror("Overflow Error");
+		exit(-1);
+	}
+}
+
+// Move from HI
+int mfhi(int register2) {
+	return RegisterFile[register2] = HI;
+}
+
+// Move from LO
+int mflo(int register2) {
+	return RegisterFile[register2] = LO;
+}
+
+/*
+// Move from Control Registar 
+//not sure what to do with this yet
+int mfcZ(int register2, int register3) {
+	return 0;
+}
+
+// Move to Control Registar
+//not sure that to do with this yet
+int mtcZ(int register2, int register3) {
+	return 0;
+}
+*/
+
+
+
 // Start of Logical functions
 
 int and(int register2, int register3) {
