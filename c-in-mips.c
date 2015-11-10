@@ -10,6 +10,7 @@ static char RegisterFileNames[31][4] = {"$at", "$v0", "$v1", "$a0", "$a1", "$a2"
 
 static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
+static int controlRegisterZ[1024] // Control RegisterZ
 
 static char* jump_names[128]; // jump location names and addresses
 static int jump_locations[128];
@@ -163,19 +164,23 @@ unsigned int sltu(int register2, int register3);
 int slti(int register2, int number);
 
 
-// Start of Data Transfer functions
+// Start Data Transfer functions headers
+
+// Memory Stage helpers headers
 
 int lw_read(int register2, int C);
 
-int lw(int register1, int register2, int C);
-
 short lh_read(int register2, int C);
 
-short lh(short register1, int register2, int C);
+char lb_read(int register2, int C);
+
+// WriteBack Stage helpers headers
+
+int lw_write(int register1, int value);
+
+short lh_write(short register1, int register2, int C);
 
 unsigned short lhu(int register2, int register3, int C);
-
-char lb_read(int register2, int C);
 
 char lb(int register2, int register3, int C);
 
@@ -185,7 +190,7 @@ int sw(int register1, int register2, int C);
 
 short sh(int register1, int register2, int C);
 
-char sb(int register2, int register3, int C);
+char sb(int register1, int register2, int C);
 
 int lui(int register1, int C);
 
@@ -193,11 +198,10 @@ int mfhi(int register2);
 
 int mflo(int register2);
 
-/*
-int mfcZ(int register2, int register3);
+int mfcZ(int register1, int register2);
 
-int mtcZ(int register2, int register3)
-*/
+int mtcZ(int register1, int register2);
+
 
 
 /*america() frees all memory that has been malloc'ed and not otherwise freed
@@ -765,23 +769,23 @@ int lw_write(int register1, int value) {
 
 // Load Halfword (WriteBack Stage)
 short lh_write(short register1, int register2, int C) {
-	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > -256){ // 256 for the maximum a short can contain
+	if (!(register2 < 65536 && register2 > -65536){ // 65536 for the maximum a short can contain
 		perror("Overflow Error");
 		exit(-1);
 	} else {
 		// there is conflicting types here
-		return RegisterFile[register1] = lh_read(register2, C);
+		return RegisterFile[register1] = //(an intermediate register yet to be specified);
 	}
 }
 
 // Load Halfword Unsigned (WriteBack Stage)
-unsigned short lhu(int register2, int register3, int C){
-	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > -256){ // 256 for the maximum a short can contain
+unsigned short lhu(int register2, int register3, int C) {
+	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > 0){ // 256 for the maximum a short can contain
 		perror("Overflow Error");
 		exit(-1);
 	} else {
 		// there is conflicting types here
-		return RegisterFile[register1] = lh_read(register2, C);
+		return RegisterFile[register1] = //(an intermediate register yet to be specified);
 	}
 }
 
@@ -799,7 +803,7 @@ char lb(int register2, int register3, int C) {
 
 // Load Byte Unsigned (WriteBack Stage)
 unsigned char lbu(int register1, int register2, int C){
-	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
+	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > 0){ // 10 for the maximum a char can contain
 		perror("Overflow Error");
 		exit(-1);
 	} else {
@@ -808,18 +812,18 @@ unsigned char lbu(int register1, int register2, int C){
 	}
 }
 
-// Store Word
+// Store Word (WriteBack Stage)
 int sw(int register1, int register2, int C) {
-	return lw_read(register2, C) = RegisterFile[register1];
+	return data_memory[register1 + C/4] = RegisterFile[register1];
 }
 
-// Store Halfword
+// Store Halfword (WriteBack Stage)
 short sh(int register1, int register2, int C) {
 	return lh_read(register2, C) = RegisterFile[register1];
 }
 
-// Store Byte
-char sb(int register1, int register2, int C){
+// Store Byte (WriteBack Stage)
+char sb(int register1, int register2, int C) {
 	// The RegisterFile[register1] is an int and would have conflicting types
 	return lb_read(register2, C) = RegisterFile[register1];
 }
@@ -839,17 +843,17 @@ int mflo(int register2) {
 	return RegisterFile[register2] = LO;
 }
 
-/*
+
 // Move from Control Registar (WriteBack Stage)
 int mfcZ(int register1, int register2) {
-	return 0;
+	return RegisterFile[register1] = controlRegisterZ[register2];
 }
 
 // Move to Control Registar (WriteBack Stage)
 int mtcZ(int register1, int register2) {
-	return 0;
+	return controlRegisterZ[register2] = RegisterFile[register1];
 }
-*/
+
 
 
 
@@ -935,7 +939,7 @@ ___________________________________________________________
 |  |
 |  |
 |  | 
-|  |                   ~   MERICA.   ~
+|  |                   ~   'MERICA.   ~
 |  |
 |  | 
 |  |
