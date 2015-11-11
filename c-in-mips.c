@@ -121,7 +121,7 @@ struct memwb* memory_rw(struct exmem*);
 
 /*writeback(struct memwb*) takes a pointer to a memwb register struct and uses its data to write to
 the appropriate registers, completing the execution of the instruction. Whew!*/
-void writeback(struct memwb* memwb_ptr);
+void writeback(struct memwb memwb_ptr);
 
 /*make_r_type(int, char*, int*) takes the instruction specified by instr, and converts the remainder
 of the char* to an r_type struct to hold all the data an r_type can have. instrnum holds the enum
@@ -293,16 +293,6 @@ int i=0; char *a;
         i++;
     }
 
-    RegisterFile[7]=2; RegisterFile[8]=4;
-    execute_r((struct r_type*)decodeinstruction("add $t2, $t1, $t0"));
-    execute_i((struct i_type*)decodeinstruction("addi $t2, $t2, 10"));
-    execute_j((struct j_type*)decodeinstruction("jal    loop"), 20);
-    execute_r((struct r_type*)decodeinstruction("jr $t1"));
-    execute_i((struct i_type*)decodeinstruction("sw $t0 12($t1)"));
-    execute_i((struct i_type*)decodeinstruction("lw $t0 12($t1)"));
-    printf("%d %d\n", HI, LO);
-    execute_r((struct r_type*)decodeinstruction("mult $t0 $t1"));
-    printf("%d %d\n", HI, LO);
     /*a="lw $t5 -4($fp)";
     printf("%s\n", a); decodeinstruction(a);
     a="sw $t6 0($s0)";
@@ -313,6 +303,10 @@ int i=0; char *a;
     printf("%s\n", a); decodeinstruction(a);
     */
     decodeinstruction("");
+
+    printf("\n\n\n\n\n\n");
+    controllogic();
+    
     america();
     return 0;
 }
@@ -364,6 +358,16 @@ void readmips(char* filename){
     }
 }
 
+void printstate(){
+    int i;    
+    for(i=0;i<32;i++){
+        printf("%d,",RegisterFile[i]);
+    } printf("\n");
+    for(i=0;i<32;i++){
+        printf("%d,",data_memory[i]);
+    } printf("\n");
+}
+
 int controllogic(){
     int pc=0;
     char *cur_instruction; //analogous to if/id pipeline register
@@ -375,7 +379,10 @@ int controllogic(){
     struct memwb* memwb_ptr;
 
     while(1){
+        printf("pc:%d\n",pc);
+        printstate();
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
+        printf("%s, %d\n", cur_instruction,(int)strlen(cur_instruction));
         instr = decodeinstruction(cur_instruction);
         if((*instr).instr<Addi){
             r_instr_ptr=(struct r_type*)instr;
@@ -395,8 +402,8 @@ int controllogic(){
             pc=((*exmem_ptr).will_branch);
         } else{
             memwb_ptr = memory_rw(exmem_ptr);
+            writeback(*memwb_ptr);
         }
-        writeback(memwb_ptr);
     }
     return 0;
 }
@@ -411,10 +418,12 @@ struct Instruction_Type* decodeinstruction(char* instr){
     struct j_type *j_instr_ptr;
     struct i_type *i_instr_ptr;
     struct r_type *r_instr_ptr;
-    struct Instruction_Type* instr_ptr;
+    struct Instruction_Type instr_type;
+    struct Instruction_Type* instr_ptr=&instr_type;
+    memset(instr_ptr,0,sizeof(instr_type));
     memset(buffer,0,sizeof(buffer));
     if(strlen(instr)==0){
-        instrnum==43;
+        instrnum=Break;
     } else{
         while(*(instr+i)!=' '){
             buffer[i]=*(instr+i);
@@ -439,9 +448,9 @@ struct Instruction_Type* decodeinstruction(char* instr){
         printf("inum:%d,jump:%d\n",(*j_instr_ptr).instr,(*j_instr_ptr).jump_to);
         instr_ptr=(struct Instruction_Type*)j_instr_ptr;
     } else if (instrnum==Break){
-        (*instr_ptr).instr=43;
+        instr_type.instr=Break;
     } else{
-        (*instr_ptr).instr=44;
+        instr_type.instr=Break+1;
         printf("Instruction not found\n");
     }
     
@@ -495,10 +504,14 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
     } else if(i_instr.instr>=Lw){ // all standard memory loads
         exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to load from
         exmem_reg.dest_register=i_instr.dest_register; // the register to load to
-    } else if(i_instr.instr==Bne){ // bne
-        exmem_reg.will_branch=i_instr.immediate*(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt));
+    } else if(i_instr.instr==Bne){ // bne - if one is less than the other set branch location
+        if((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.s_register, i_instr.dest_register,Slt)==1)){
+            exmem_reg.will_branch=i_instr.immediate;
+        }
     } else if(i_instr.instr==Beq){ // beq
-        exmem_reg.will_branch=i_instr.immediate*(1-(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt)));
+        if(!((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.s_register, i_instr.dest_register,Slt)==1))){
+            exmem_reg.will_branch=i_instr.immediate;
+        }
     } else{ //just some alu operations
         exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
         exmem_reg.dest_register=i_instr.dest_register;
@@ -617,35 +630,38 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
     struct exmem exmem_reg = *exmem_ptr;
     struct memwb memwb_reg;
     struct memwb *memwb_ptr = &memwb_reg;
+    memset(memwb_ptr,0,sizeof(memwb_reg));
 
     memwb_reg.instrnum=exmem_reg.instrnum;
     memwb_reg.dest_register=exmem_reg.dest_register;
-    if(exmem_reg.instrnum=Lw){
+    if(exmem_reg.instrnum==Lw){
         memwb_reg.value=lw_read(exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Lh){
+    } else if(exmem_reg.instrnum==Lh){
         memwb_reg.value=(int)lh_read(exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Lhu){
+    } else if(exmem_reg.instrnum==Lhu){
         memwb_reg.value=(int)lhu_read(exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Lb){
+    } else if(exmem_reg.instrnum==Lb){
         memwb_reg.value=(int)lb_read(exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Lbu){
+    } else if(exmem_reg.instrnum==Lbu){
         memwb_reg.value=(int)lbu_read(exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Sw){
+    } else if(exmem_reg.instrnum==Sw){
         sw(exmem_reg.dest_register,exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Sh){
+    } else if(exmem_reg.instrnum==Sh){
         sh(exmem_reg.dest_register,exmem_reg.alu_result);
-    } else if(exmem_reg.instrnum=Sb){
+    } else if(exmem_reg.instrnum==Sb){
         sb(exmem_reg.dest_register,exmem_reg.alu_result);
     } else{
         memwb_reg.value=exmem_reg.alu_result;
     }
-
+    
+    printf("instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
     return memwb_ptr;
 }
 
-void writeback(struct memwb *memwb_ptr){
-    struct memwb memwb_reg = *memwb_ptr;
+void writeback(struct memwb memwb_ptr){
+    struct memwb memwb_reg = memwb_ptr;
     
+    printf("instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
     if(memwb_reg.instrnum==Mfhi){
         mfhi(memwb_reg.dest_register);
     } else if(memwb_reg.instrnum==Mflo){
@@ -655,7 +671,6 @@ void writeback(struct memwb *memwb_ptr){
     } else{
         register_write(memwb_reg.dest_register,memwb_reg.value);
     }
-
 }
 
 
@@ -850,7 +865,7 @@ unsigned int addu(int register2, int register3) {
 }
 
 int sub(int register2, int register3) {
-	return safe_sub(RegisterFile[register2], RegisterFile[register3]);
+	return safe_add(RegisterFile[register2], 0-RegisterFile[register3]);
 }
 
 unsigned int subu(int register2, int register3) {
