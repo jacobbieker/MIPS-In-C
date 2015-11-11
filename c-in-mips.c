@@ -377,10 +377,17 @@ int controllogic(){
     struct Instruction_Type* instr;
     struct exmem* exmem_ptr;
     struct memwb* memwb_ptr;
-
+    int mainct =0;
+    
     while(1){
         printf("pc:%d\n",pc);
         printstate();
+        if(pc==24){
+            mainct++;
+            if(mainct==2){
+                break;
+            }
+        }
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         printf("%s, %d\n", cur_instruction,(int)strlen(cur_instruction));
         instr = decodeinstruction(cur_instruction);
@@ -646,10 +653,13 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
         memwb_reg.value=(int)lbu_read(exmem_reg.alu_result);
     } else if(exmem_reg.instrnum==Sw){
         sw(exmem_reg.dest_register,exmem_reg.alu_result);
+        memwb_reg.dest_register=0;
     } else if(exmem_reg.instrnum==Sh){
         sh(exmem_reg.dest_register,exmem_reg.alu_result);
+        memwb_reg.dest_register=0;
     } else if(exmem_reg.instrnum==Sb){
         sb(exmem_reg.dest_register,exmem_reg.alu_result);
+        memwb_reg.dest_register=0;
     } else{
         memwb_reg.value=exmem_reg.alu_result;
     }
