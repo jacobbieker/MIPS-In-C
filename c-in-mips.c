@@ -6,8 +6,8 @@
 #include <limits.h>
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-static char RegisterFileNames[31][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
-static char RegisterNumberNames[31][4] = {"$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28","$29","$30","$31"};
+static char RegisterFileNames[32][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
+static char RegisterNumberNames[32][4] = {"$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28","$29","$30","$31"};
 
 static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
@@ -57,7 +57,12 @@ struct exmem {
     int alu_result;
     int dest_register;
     int will_branch;
-    int index;
+};
+
+struct memwb {
+    int instrnum;
+    int value;
+    int dest_register;
 };
 
 /* readmips(char*) reads the assembly file specified by filename into the instructions data array*/
@@ -85,6 +90,12 @@ struct exmem* execute_i(struct i_type*);
 /*execute_j(struct j_type*, int pc) takes a pointer to a j_type instruction and the value of the program
 counter and puts the correct data into an exmem register struct, which can then b passed to the memory function*/
 struct exmem* execute_j(struct j_type*, int pc);
+
+int alu(int, int, int);
+
+/*memory_rw(struct exmem*) takes a pointer to an exmem register struct and uses that to access the memory if needed
+and create a memwb struct to pass data on to the register writeback pipeline phase*/
+struct memwb* memory_rw(struct exmem*);
 
 /*make_r_type(int, char*, int*) takes the instruction specified by instr, and converts the remainder
 of the char* to an r_type struct to hold all the data an r_type can have. instrnum holds the enum
@@ -178,12 +189,15 @@ int srlv(int register2, int register3);
 
 // Memory Stage helpers headers
 
-int lw_read(int register2, int C);
+int lw_read(int registerAndIndex);
 
-short lh_read(int register2, int C);
+short lh_read(int registerAndIndex);
 
-char lb_read(int register2, int C);
+unsigned short lhu_read(int registerAndIndex);
 
+char lb_read(int registerAndIndex);
+
+unsigned char lbu_read(int registerAndIndex);
 // WriteBack Stage helpers headers
 
 int lw_write(int register1, int value);
@@ -314,21 +328,26 @@ int controllogic(){
     struct i_type *i_instr_ptr;
     struct r_type *r_instr_ptr;
     struct Instruction_Type* instr;
+    struct exmem* exmem_ptr;
+    struct memwb* memwb_ptr;
+
 
     while(1){
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         instr = decodeinstruction(cur_instruction);
         if((*instr).instr<Addi){
             r_instr_ptr=(struct r_type*)instr;
-            execute_r(r_instr_ptr);
+            exmem_ptr = execute_r(r_instr_ptr);
         } else if((*instr).instr<J){
             i_instr_ptr=(struct i_type*)instr;
-            execute_i(i_instr_ptr);
+            exmem_ptr = execute_i(i_instr_ptr);
         } else if((*instr).instr<43){
             j_instr_ptr=(struct j_type*)instr;
-            execute_j(j_instr_ptr,pc);
+            exmem_ptr = execute_j(j_instr_ptr,pc);
+        } else{
+            break;
         }
-        //memory read/write
+        memwb_ptr = memory_rw(exmem_ptr);
         //register write
         return 0;
     }
@@ -396,7 +415,7 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
         exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
     }
 
-    printf("instr:%d,alu:%d,dest:%d,branch:%d,ind:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch,exmem_reg.index);
+    printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
     return exmem_ptr;
 }
 
@@ -411,13 +430,11 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
         exmem_reg.alu_result=i_instr.immediate << 16;
         exmem_reg.dest_register=i_instr.dest_register;
     } else if(i_instr.instr>=Sw){ // all standard memory stores
-        exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
-        exmem_reg.dest_register=alu(i_instr.dest_register,0,Addi);
-        exmem_reg.index=i_instr.immediate;
+        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to store into
+        exmem_reg.dest_register=alu(i_instr.dest_register,0,Addi); // the value to put there
     } else if(i_instr.instr>=Lw){ // all standard memory loads
-        exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
-        exmem_reg.dest_register=i_instr.dest_register;
-        exmem_reg.index=i_instr.immediate;
+        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to load from
+        exmem_reg.dest_register=i_instr.dest_register; // the register to load to
     } else if(i_instr.instr==Bne){ // bne
         exmem_reg.will_branch=i_instr.immediate*(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt));
     } else if(i_instr.instr==Beq){ // beq
@@ -427,7 +444,7 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
         exmem_reg.dest_register=i_instr.dest_register;
     }
 
-    printf("instr:%d,alu:%d,dest:%d,branch:%d,ind:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch,exmem_reg.index);
+    printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
     return exmem_ptr;
 }
 
@@ -445,7 +462,7 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
         exmem_reg.alu_result=pc; exmem_reg.dest_register=30;
     }
 
-    printf("instr:%d,alu:%d,dest:%d,branch:%d,ind:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch,exmem_reg.index);
+    printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
     return exmem_ptr;
 }
 
@@ -530,6 +547,38 @@ int alu(int operandA, int operandB, int Operation) {
 	return result;
 }
 
+struct memwb *memory_rw(struct exmem* exmem_ptr){
+    struct exmem exmem_reg = *exmem_ptr;
+    struct memwb memwb_reg;
+    struct memwb *memwb_ptr = &memwb_reg;
+
+    memwb_reg.instrnum=exmem_reg.instrnum;
+    memwb_reg.dest_register=exmem_reg.dest_register;
+    if(exmem_reg.instrnum=Lw){
+        memwb_reg.value=lw_read(exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Lh){
+        memwb_reg.value=(int)lh_read(exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Lhu){
+        memwb_reg.value=(int)lhu_read(exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Lb){
+        memwb_reg.value=(int)lb_read(exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Lbu){
+        memwb_reg.value=(int)lbu_read(exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Sw){
+        sw(exmem_reg.dest_register,exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Sh){
+        sh(exmem_reg.dest_register,exmem_reg.alu_result);
+    } else if(exmem_reg.instrnum=Sb){
+        sb(exmem_reg.dest_register,exmem_reg.alu_result);
+    } else{
+        memwb_reg.value=exmem_reg.alu_result;
+    }
+
+    return memwb_ptr;
+}
+
+
+
 
 
 // decode helper functions
@@ -539,7 +588,7 @@ struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
 
     r_instr.instr=instrnum;
     r_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum<Mfhi){
+    if(instrnum<Mfhi){ // some only need 1 or 2 registers
         r_instr.s_register1=nextregister(instr, ptr);
         if(instrnum<Sll){
             r_instr.s_register2=nextregister(instr, ptr);
@@ -582,7 +631,7 @@ struct j_type* make_j_type(int instrnum, char* instr, int* ptr){
     return j_type_ptr;
 }
 
-
+// second level decode helper functions
 char nextregister(char* instr, int* ptr){
     char reg[8];
     int i=*ptr; char newit = 0;
@@ -695,7 +744,7 @@ int safe_sub(int a, int b) {
 }
 
 // Start of Arithmetic functions
-//TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
+// Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(int register2, int register3) {
 	return safe_add(RegisterFile[register2], RegisterFile[register3]);
 }
@@ -771,25 +820,36 @@ int srlv(int register2, int register3) {
 // Memory Stage helpers
 
 // Read in Load Word Memory (Memory Stage)
-int lw_read(int register2, int C) {
-	return data_memory[register2 + C/4];
+int lw_read(int registerAndIndex) {
+	return data_memory[registerAndIndex/4];
 }
 
 // Read in Load Halfword Memory (Memory Stage)
-short lh_read(int register2, int C) {
-	int a = data_memory[register2 + C/4];
-	short b = (short)a;
+short lh_read(int registerAndIndex) {
+	int a = data_memory[registerAndIndex/4];
+	short b = (short)a; //TODO: make this get the right half
 	// Need to figure out which half to get (distinguish from each other)
 	return b;
 }
 
+unsigned short lhu_read(int registerAndIndex){
+    int a = data_memory[registerAndIndex/4];
+    unsigned short b = (unsigned short)a; //TODO: make this get the right half
+}
+
+
 // Read in Byte Memory (Memory Stage)
-char lb_read(int register2, int C) {
-	int a = data_memory[register2 + C/4];
-	char b = a + '0';
+char lb_read(int registerAndIndex) {
+	int a = data_memory[registerAndIndex/4];
+	char b = (char)a; //TODO: make this get the right byte
 	return b;
 }
 
+unsigned char lbu_read(int registerAndIndex){
+    int a = data_memory[registerAndIndex/4];
+    unsigned char b = (unsigned char)a; //TODO: make this get the right byte
+    return b;
+}
 
 
 // WriteBack Stage helpers
