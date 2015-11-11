@@ -202,7 +202,7 @@ int srav(int register2, int register3);
 
 // Memory Stage helpers headers
 
-int lw_read(int register2, int C);
+void register_read(int register2, int C);
 
 short lh_read(int register2, int C);
 
@@ -850,8 +850,10 @@ char lb_read(int register2, int C) {
 // WriteBack Stage helpers
 
 // Load Word (WriteBack Stage)
-int lw_write(int register1, int value) {
-	return RegisterFile[register1] = value;
+void register_write(int register1, int value) {
+	if (register1 != 0){
+		RegisterFile[register1] = value;
+	} 
 }
 /*
 // Load Halfword (WriteBack Stage)
@@ -901,7 +903,7 @@ unsigned char lbu(int register1, int value) {
 */
 // Store Word (WriteBack Stage)
 void sw(int register1, int registerAndIndex) {
-	data_memory[registerAndIndex/4] = data_memory[registerAndIndex/4] = register1;
+	data_memory[registerAndIndex/4] = register1;
 }
 
 
