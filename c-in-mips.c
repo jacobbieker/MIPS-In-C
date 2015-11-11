@@ -510,6 +510,18 @@ int alu(int operandA, int operandB, int Operation) {
 	else if (Operation == Sltu) {
 		result = sltu(operandA, operandB);
 	}
+	else if (Operation == Sll) {
+		result = sll(operandA, operandB);
+	}
+	else if (Operation == Sllv) {
+		result = sllv(operandA, operandB);
+	}
+	else if (Operation == Srl) {
+		result = srl(operandA, operandB);
+	}
+	else if (Operation == Srlv) {
+		result = srlv(operandA, operandB);
+	}
 	else {
 		perror("Command Not Found\n");
 		exit(-1);
