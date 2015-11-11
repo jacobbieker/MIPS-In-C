@@ -373,10 +373,14 @@ int controllogic(){
         } else{
             break;
         }
-        memwb_ptr = memory_rw(exmem_ptr);
+        if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=42)){
+            pc=((*exmem_ptr).will_branch);
+        } else{
+            memwb_ptr = memory_rw(exmem_ptr);
+        }
         //register write
-        return 0;
     }
+    return 0;
 }
 
 char* getinstruction(int pc){
