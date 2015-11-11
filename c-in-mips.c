@@ -174,6 +174,10 @@ int sllv(int register2, int register3);
 
 int srlv(int register2, int register3);
 
+int sra(int register2, int number);
+
+int srav(int register2, int register3);
+
 // Start Data Transfer functions headers
 
 // Memory Stage helpers headers
@@ -523,6 +527,12 @@ int alu(int operandA, int operandB, int Operation) {
 	else if (Operation == Srlv) {
 		result = srlv(operandA, operandB);
 	}
+	else if (Operation == Sra) {
+		result = sra(operandA, operandB);
+	}
+	else if (Operation == Srav) {
+		result = srav(operandA, operandB);
+	}
 	else {
 		perror("Command Not Found\n");
 		exit(-1);
@@ -700,6 +710,17 @@ int sm2tc(int x) {
 	return (~m & x) | (((x & 0x80000000) - x) & m);
 }
 
+//Calculate the necessary jump for Srav and others
+
+int summing(int x) {
+	int count = 1;
+	int sum = 0;
+	while (count < x) {
+		sum += (1 << (32 - count))
+	}
+	return sum;
+}
+
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(int register2, int register3) {
@@ -770,6 +791,14 @@ int sllv(int register2, int register3) {
 
 int srlv(int register2, int register3) {
 	return RegisterFile[register2] >> RegisterFile[register3];
+}
+
+int sra(int register2, int number) {
+	return (RegisterFile[register2] >> number + summing(number) * (RegisterFile[register2] >> 31));
+}
+
+int srav(int register2, int register3) {
+	return (RegisterFile[register2] >> RegisterFile[register3] + summing(RegisterFile[register3]) * (RegisterFile[register2] >> 31));
 }
 
 // Start Data Transfer functions
