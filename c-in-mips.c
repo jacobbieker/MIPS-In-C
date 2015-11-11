@@ -1,3 +1,23 @@
+/* CIS 314 Big Project, Week 1 Fall 2015
+ *
+ *	Authors:
+ *		Matthew Jagielski, Jacob Bieker, and Theodore LaGrow
+ *
+ *  Date:
+ *      11/11/2015
+ *		
+ *	Sources:
+ *		CIS 314 on canvas.uoregon.edu
+ *	    https://www.cs.uoregon.edu/Classes/15F/cis314/
+ *	    StackOverFlow.com
+ *		
+ *	Assignment:
+ *		Single cycle processor simulation in C: implement (a) a register file, (b) an ALU
+ *      (c) control logic, and (d) main memory.
+ *  
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
