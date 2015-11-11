@@ -6,7 +6,8 @@
 #include <limits.h>
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-static char RegisterFileNames[31][4] = {"$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
+static char RegisterFileNames[31][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
+static char RegisterNumberNames[31][4] = {"$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28","$29","$30","$31"};
 
 static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
@@ -317,10 +318,10 @@ int controllogic(){
     while(1){
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         instr = decodeinstruction(cur_instruction);
-        if((*instr).instr<25){
+        if((*instr).instr<Addi){
             r_instr_ptr=(struct r_type*)instr;
             execute_r(r_instr_ptr);
-        } else if((*instr).instr<41){
+        } else if((*instr).instr<J){
             i_instr_ptr=(struct i_type*)instr;
             execute_i(i_instr_ptr);
         } else if((*instr).instr<43){
@@ -354,11 +355,11 @@ struct Instruction_Type* decodeinstruction(char* instr){
             break;
         }
     }
-    if(instrnum<25){
+    if(instrnum<Addi){
         r_instr_ptr=make_r_type(instrnum, instr, ptr);
         printf("inum:%d,dest:%d,s1:%d,s2:%d,shamt:%d\n",(*r_instr_ptr).instr,(*r_instr_ptr).dest_register,(*r_instr_ptr).s_register1,(*r_instr_ptr).s_register2,(*r_instr_ptr).shamt);
         instr_ptr=(struct Instruction_Type*)r_instr_ptr;
-    } else if(instrnum<41){
+    } else if(instrnum<J){
         i_instr_ptr=make_i_type(instrnum, instr, ptr);
         printf("inum:%d,dest:%d,s:%d,imm:%d\n",(*i_instr_ptr).instr,(*i_instr_ptr).dest_register,(*i_instr_ptr).s_register,(*i_instr_ptr).immediate);
         instr_ptr=(struct Instruction_Type*)i_instr_ptr;
@@ -381,15 +382,15 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
     memset(exmem_ptr, 0, sizeof(exmem_reg));
 
     exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
-    if(r_instr.instr<13){ // all normal 3 register r types
+    if(r_instr.instr<Sll){ // all normal 3 register r types
         exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.s_register2, r_instr.instr);
         exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<16){ // shift operations
+    } else if(r_instr.instr<Mult){ // shift operations
         exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.shamt, r_instr.instr);
         exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<22){ // mult and similar
+    } else if(r_instr.instr<Mfhi){ // mult and similar
         exmem_reg.alu_result = alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
-    } else if(r_instr.instr<24){ // mfhi and mflo
+    } else if(r_instr.instr<Jr){ // mfhi and mflo
         exmem_reg.dest_register = r_instr.dest_register;
     } else{ // jr
         exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
@@ -406,20 +407,20 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
     memset(exmem_ptr, 0, sizeof(exmem_reg));
 
     exmem_reg.instrnum=i_instr.instr; exmem_reg.will_branch=0;
-    if(i_instr.instr==40){ //lui
+    if(i_instr.instr==Lui){ //lui
         exmem_reg.alu_result=i_instr.immediate << 16;
         exmem_reg.dest_register=i_instr.dest_register;
-    } else if(i_instr.instr>=37){ // all standard memory stores
+    } else if(i_instr.instr>=Sw){ // all standard memory stores
         exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
         exmem_reg.dest_register=alu(i_instr.dest_register,0,Addi);
         exmem_reg.index=i_instr.immediate;
-    } else if(i_instr.instr>=32){ // all standard memory loads
+    } else if(i_instr.instr>=Lw){ // all standard memory loads
         exmem_reg.alu_result=alu(i_instr.s_register, 0, Addi);
         exmem_reg.dest_register=i_instr.dest_register;
         exmem_reg.index=i_instr.immediate;
-    } else if(i_instr.instr==31){ // bne
+    } else if(i_instr.instr==Bne){ // bne
         exmem_reg.will_branch=i_instr.immediate*(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt));
-    } else if(i_instr.instr==30){ // beq
+    } else if(i_instr.instr==Beq){ // beq
         exmem_reg.will_branch=i_instr.immediate*(1-(alu(i_instr.s_register, i_instr.dest_register,Slt)|alu(i_instr.s_register, i_instr.dest_register,Slt)));
     } else{ //just some alu operations
         exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
@@ -437,7 +438,7 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
     memset(exmem_ptr,0,sizeof(exmem_reg));
 
     exmem_reg.instrnum=j_instr.instr;
-    if(j_instr.instr==41){ // j
+    if(j_instr.instr==J){ // j
         exmem_reg.will_branch=j_instr.jump_to;
     } else{ // jal
         exmem_reg.will_branch=j_instr.jump_to;
@@ -538,11 +539,11 @@ struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
 
     r_instr.instr=instrnum;
     r_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum<22){
+    if(instrnum<Mfhi){
         r_instr.s_register1=nextregister(instr, ptr);
-        if(instrnum<13){
+        if(instrnum<Sll){
             r_instr.s_register2=nextregister(instr, ptr);
-        } else if(instrnum<16){
+        } else if(instrnum<Mult){
             r_instr.shamt=(char)nextint(instr, ptr);
         }
     }
@@ -557,12 +558,12 @@ struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
 
     i_instr.instr=instrnum;
     i_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum==40){
+    if(instrnum==Lui){
         i_instr.immediate=nextint(instr, ptr);
-    } else if(instrnum>=32){
+    } else if(instrnum>=Lw){
         indreg_ptr = nextindexedregister(instr, ptr);
         i_instr.s_register=(*indreg_ptr).mem_register; i_instr.immediate=(*indreg_ptr).index;
-    } else if(instrnum>=30){
+    } else if(instrnum>=Beq){
         i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextjumploc(instr,ptr);
     } else{
         i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextint(instr, ptr);
@@ -597,11 +598,8 @@ char nextregister(char* instr, int* ptr){
     }
     i++; *ptr=i;
     
-    if(strcmp(reg,"$0")==0 || strcmp(reg,"$zero")==0){
-        return 31;
-    }
-    for(newit=0;newit<31;newit++){
-        if(strcmp(reg,RegisterFileNames[newit])==0){
+    for(newit=0;newit<32;newit++){
+        if(strcmp(reg,RegisterFileNames[newit])==0||strcmp(reg,RegisterNumberNames[newit])==0){
             return newit;
         }
     }
@@ -660,11 +658,8 @@ struct indexed_register* nextindexedregister(char* instr, int* ptr){
         i++;
     }
     i = 0;
-    if(strcmp(reg,"$0")==0||strcmp(reg,"$zero")==0){
-        indreg.mem_register=31;
-    }
-    for(newit=0;newit<31;newit++){
-        if(strcmp(reg,RegisterFileNames[newit])==0){
+    for(newit=0;newit<32;newit++){
+        if(strcmp(reg,RegisterFileNames[newit])==0||strcmp(reg,RegisterNumberNames[newit])==0){
             indreg.mem_register=newit;
             i=1;
             break;
