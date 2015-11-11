@@ -163,6 +163,15 @@ unsigned int sltu(int register2, int register3);
 
 int slti(int register2, int number);
 
+//Start of Bitwise functions
+
+int sll(int register2, int number);
+
+int srl(int register2, int number);
+
+int sllv(int register2, int register3);
+
+int srlv(int register2, int register3);
 
 // Start Data Transfer functions headers
 
@@ -732,7 +741,23 @@ void divu(int register2, int register3) {
 	HI = RegisterFile[register2] % RegisterFile[register3];
 }
 
+//Start Bitwise Operation Functions
 
+int sll(int register2, int number) {
+	return RegisterFile[register2] << number;
+}
+
+int srl(int register2, int number) {
+	return RegisterFile[register2] >> number;
+}
+
+int sllv(int register2, int register3) {
+	return RegisterFile[register2] << RegisterFile[register3];
+}
+
+int srlv(int register2, int register3) {
+	return RegisterFile[register2] >> RegisterFile[register3];
+}
 
 // Start Data Transfer functions
 
