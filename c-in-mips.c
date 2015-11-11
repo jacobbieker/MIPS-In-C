@@ -40,8 +40,8 @@ static int LO;
 static int HI;
 
 // instruction name enum and array
-typedef enum {Add, Addu, Sub, Subu, And, Or, Nor, Xor, Slt, Sltu, Srlv, Sllv, Srav, Sll, Srl, Sra, Mult, Multu, MDiv, Divu, MfcZ, MtcZ, Mfhi, Mflo, Jr, Addi, Addiu, Andi, Ori, Slti, Beq, Bne, Lw, Lh, Lhu, Lb, Lbu, Sw, Sh, Sb, Lui, J, Jal} instruction;
-static char* instr_name_list[44] = {"add", "addu", "sub", "subu", "and", "or", "nor", "xor", "slt", "sltu", "srlv", "sllv", "srav", "sll", "srl", "sra", "mult", "multu", "div", "divu", "mfcZ", "mtcZ", "mfhi", "mflo", "jr", "addi", "addiu", "andi", "ori", "slti", "beq", "bne", "lw", "lh", "lhu", "lb", "lbu", "sw", "sh", "sb", "lui", "j", "jal"};
+typedef enum {Add, Addu, Sub, Subu, And, Or, Nor, Xor, Slt, Sltu, Srlv, Sllv, Srav, Sll, Srl, Sra, Mult, Multu, MDiv, Divu, MfcZ, MtcZ, Mfhi, Mflo, Jr, Addi, Addiu, Andi, Ori, Slti, Beq, Bne, Lw, Lh, Lhu, Lb, Lbu, Sw, Sh, Sb, Lui, J, Jal, Break} instruction;
+static char* instr_name_list[44] = {"add", "addu", "sub", "subu", "and", "or", "nor", "xor", "slt", "sltu", "srlv", "sllv", "srav", "sll", "srl", "sra", "mult", "multu", "div", "divu", "mfcZ", "mtcZ", "mfhi", "mflo", "jr", "addi", "addiu", "andi", "ori", "slti", "beq", "bne", "lw", "lh", "lhu", "lb", "lbu", "sw", "sh", "sb", "lui", "j", "jal", "break"};
 
 struct Instruction_Type { // generic instruction type - holds instruction only
     instruction instr;
@@ -111,11 +111,17 @@ struct exmem* execute_i(struct i_type*);
 counter and puts the correct data into an exmem register struct, which can then b passed to the memory function*/
 struct exmem* execute_j(struct j_type*, int pc);
 
+/*alu(int val1,int val2,int op) takes two values specified by val1 and val2, and an operation specified by op,
+and performs and returns the appropriate value for the operation when performed with the two input values*/
 int alu(int, int, int);
 
 /*memory_rw(struct exmem*) takes a pointer to an exmem register struct and uses that to access the memory if needed
 and create a memwb struct to pass data on to the register writeback pipeline phase*/
 struct memwb* memory_rw(struct exmem*);
+
+/*writeback(struct memwb*) takes a pointer to a memwb register struct and uses its data to write to
+the appropriate registers, completing the execution of the instruction. Whew!*/
+void writeback(struct memwb* memwb_ptr);
 
 /*make_r_type(int, char*, int*) takes the instruction specified by instr, and converts the remainder
 of the char* to an r_type struct to hold all the data an r_type can have. instrnum holds the enum
@@ -151,23 +157,32 @@ the instruction specified by instr at the location specified by *ptr */
 struct indexed_register* nextindexedregister(char* instr, int* ptr);
 
 // Check for overflow function
+/*safe_add(int,int) adds two integers, checking for overflow*/
 int safe_add(int a, int b);
 
+/*safe_sub(int,int) subtracts the second integer from the first, checking for overflow*/
 int safe_sub(int a, int b);
 
 // Start of Arithmetic functions
+//add adds two values
 int add(int register2, int register3);
 
+//addu adds unsigned int values
 unsigned int addu(int register2, int register3);
 
+// sub subtracts
 int sub(int register2, int register3);
 
+// subu subtracts unsigned ints
 unsigned int subu(int register2, int register3);
 
+// addi adds an immediate value to a value found in a register
 int addi(int register2, int number);
 
+// addiu does the same as addi except with unsigned ints
 unsigned int addiu(int register2, int number);
 
+// mult stores the upper half of the product in HI and the lower half in LO
 void mult(int register2, int register3);
 
 void multu(int register2, int register3);
@@ -242,15 +257,11 @@ void sh(int register1, int registerAndIndex);
 
 void sb(int register1, int registerAndIndex);
 
-int lui(int register1, int C);
+void mfhi(int register2);
 
-int mfhi(int register2);
+void mflo(int register2);
 
-int mflo(int register2);
-
-int mfcZ(int register1, int register2);
-
-int mtcZ(int register1, int register2);
+void mtcZ(int register1, int register2);
 
 
 
@@ -274,6 +285,11 @@ int i=0; char *a;
     i=0;
     while(jump_names[i]!=NULL){
         printf("%d, %s\n", jump_locations[i], jump_names[i]);
+        if(strcmp(instructions[jump_locations[i]],"")!=0){
+            printf("%s\n", instructions[jump_locations[i]]);
+        } else{
+            printf("WOWOOWOOWOWOOW\n");
+        }
         i++;
     }
 
@@ -296,6 +312,7 @@ int i=0; char *a;
     a="bne $t0,    $t1, loop";
     printf("%s\n", a); decodeinstruction(a);
     */
+    decodeinstruction("");
     america();
     return 0;
 }
@@ -357,7 +374,6 @@ int controllogic(){
     struct exmem* exmem_ptr;
     struct memwb* memwb_ptr;
 
-
     while(1){
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         instr = decodeinstruction(cur_instruction);
@@ -367,18 +383,20 @@ int controllogic(){
         } else if((*instr).instr<J){
             i_instr_ptr=(struct i_type*)instr;
             exmem_ptr = execute_i(i_instr_ptr);
-        } else if((*instr).instr<43){
+        } else if((*instr).instr<Break){
             j_instr_ptr=(struct j_type*)instr;
             exmem_ptr = execute_j(j_instr_ptr,pc);
-        } else{
+        } else if((*instr).instr==Break){ // this is for break or empty string
             break;
+        } else{
+            exit(1);
         }
         if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=42)){
             pc=((*exmem_ptr).will_branch);
         } else{
             memwb_ptr = memory_rw(exmem_ptr);
         }
-        //register write
+        writeback(memwb_ptr);
     }
     return 0;
 }
@@ -395,13 +413,17 @@ struct Instruction_Type* decodeinstruction(char* instr){
     struct r_type *r_instr_ptr;
     struct Instruction_Type* instr_ptr;
     memset(buffer,0,sizeof(buffer));
-    while(*(instr+i)!=' '){
-        buffer[i]=*(instr+i);
-        i++;
-    } 
-    for(instrnum=0;instrnum<44;instrnum++){
-        if(strcmp(buffer,instr_name_list[instrnum])==0){
-            break;
+    if(strlen(instr)==0){
+        instrnum==43;
+    } else{
+        while(*(instr+i)!=' '){
+            buffer[i]=*(instr+i);
+            i++;
+        }
+        for(instrnum=0;instrnum<44;instrnum++){
+            if(strcmp(buffer,instr_name_list[instrnum])==0){
+                break;
+            }
         }
     }
     if(instrnum<Addi){
@@ -412,13 +434,15 @@ struct Instruction_Type* decodeinstruction(char* instr){
         i_instr_ptr=make_i_type(instrnum, instr, ptr);
         printf("inum:%d,dest:%d,s:%d,imm:%d\n",(*i_instr_ptr).instr,(*i_instr_ptr).dest_register,(*i_instr_ptr).s_register,(*i_instr_ptr).immediate);
         instr_ptr=(struct Instruction_Type*)i_instr_ptr;
-    } else if (instrnum<43){
+    } else if (instrnum<Break){
         j_instr_ptr=make_j_type(instrnum, instr, ptr);
         printf("inum:%d,jump:%d\n",(*j_instr_ptr).instr,(*j_instr_ptr).jump_to);
         instr_ptr=(struct Instruction_Type*)j_instr_ptr;
-    } else{
+    } else if (instrnum==Break){
         (*instr_ptr).instr=43;
-        printf("Instruction not found: %s\n", instr);
+    } else{
+        (*instr_ptr).instr=44;
+        printf("Instruction not found\n");
     }
     
     return instr_ptr;
@@ -431,18 +455,24 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
     memset(exmem_ptr, 0, sizeof(exmem_reg));
 
     exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
-    if(r_instr.instr<Sll){ // all normal 3 register r types
+    if(r_instr.instr<=Srav){ // all normal 3 register r types
         exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.s_register2, r_instr.instr);
         exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<Mult){ // shift operations
+    } else if(r_instr.instr<=Sra){ // shift operations
         exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.shamt, r_instr.instr);
         exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<Mfhi){ // mult and similar
+    } else if(r_instr.instr<=Divu){ // mult and similar
         exmem_reg.alu_result = alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
-    } else if(r_instr.instr<Jr){ // mfhi and mflo
+    } else if(r_instr.instr==MfcZ){
+        exmem_reg.alu_result = controlRegisterZ[RegisterFile[r_instr.s_register1]];
+        exmem_reg.dest_register = r_instr.dest_register;
+    } else if(r_instr.instr==MtcZ){
+        exmem_reg.alu_result = alu(r_instr.dest_register,0,Addi);
+        exmem_reg.dest_register = r_instr.s_register1;
+    } else if(r_instr.instr<=Mflo){ // mfhi and mflo
         exmem_reg.dest_register = r_instr.dest_register;
     } else{ // jr
-        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
+        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi)>>2;
     }
 
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
@@ -613,7 +643,20 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
     return memwb_ptr;
 }
 
+void writeback(struct memwb *memwb_ptr){
+    struct memwb memwb_reg = *memwb_ptr;
+    
+    if(memwb_reg.instrnum==Mfhi){
+        mfhi(memwb_reg.dest_register);
+    } else if(memwb_reg.instrnum==Mflo){
+        mflo(memwb_reg.dest_register);
+    } else if(memwb_reg.instrnum==MtcZ){
+        mtcZ(memwb_reg.dest_register,memwb_reg.value);
+    } else{
+        register_write(memwb_reg.dest_register,memwb_reg.value);
+    }
 
+}
 
 
 
@@ -791,7 +834,7 @@ int summing(int x) {
 	int count = 1;
 	int sum = 0;
 	while (count < x) {
-		sum += (1 << (32 - count))
+		sum += (1 << (32 - count));
 	}
 	return sum;
 }
@@ -996,33 +1039,19 @@ void sb(int register1, int registerAndIndex) {
 }
 
 
-// Load Upper Immediate (WriteBack Stage)
-int lui(int register1, int C) {
-		return RegisterFile[register1] = C; //already shifted 16 bits
-}
-
 // Move from HI (WriteBack Stage)
-int mfhi(int register2) {
-	return RegisterFile[register2] = HI;
+void mfhi(int register2) {
+	RegisterFile[register2] = HI;
 }
 
 // Move from LO (WriteBack Stage)
-int mflo(int register2) {
-	return RegisterFile[register2] = LO;
+void mflo(int register2) {
+	RegisterFile[register2] = LO;
 }
 
-/*
-// Move from Control Registar (WriteBack Stage)
-int mfcZ(int register1, int register2) {
-	return RegisterFile[register1] = controlRegisterZ[register2];
+void mtcZ(int Zregister, int value){
+    controlRegisterZ[Zregister]=value;
 }
-
-// Move to Control Registar (WriteBack Stage)
-int mtcZ(int register1, int register2) {
-	return controlRegisterZ[register2] = register1;
-}
-*/
-
 
 
 
