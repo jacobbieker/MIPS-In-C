@@ -1,3 +1,23 @@
+/* CIS 314 Big Project, Week 1 Fall 2015
+ *
+ *	Authors:
+ *		Matthew Jagielski, Jacob Bieker, and Theodore LaGrow
+ *
+ *  Date:
+ *      11/11/2015
+ *		
+ *	Sources:
+ *		CIS 314 on canvas.uoregon.edu
+ *	    https://www.cs.uoregon.edu/Classes/15F/cis314/
+ *	    StackOverFlow.com
+ *		
+ *	Assignment:
+ *		Single cycle processor simulation in C: implement (a) a register file, (b) an ALU
+ *      (c) control logic, and (d) main memory.
+ *  
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -185,6 +205,10 @@ int sllv(int register2, int register3);
 
 int srlv(int register2, int register3);
 
+int sra(int register2, int number);
+
+int srav(int register2, int register3);
+
 // Start Data Transfer functions headers
 
 // Memory Stage helpers headers
@@ -192,6 +216,8 @@ int srlv(int register2, int register3);
 int lw_read(int registerAndIndex);
 
 short lh_read(int registerAndIndex);
+
+void register_write(int register2, int C);
 
 unsigned short lhu_read(int registerAndIndex);
 
@@ -540,6 +566,12 @@ int alu(int operandA, int operandB, int Operation) {
 	else if (Operation == Srlv) {
 		result = srlv(operandA, operandB);
 	}
+	else if (Operation == Sra) {
+		result = sra(operandA, operandB);
+	}
+	else if (Operation == Srav) {
+		result = srav(operandA, operandB);
+	}
 	else {
 		perror("Command Not Found\n");
 		exit(-1);
@@ -743,6 +775,23 @@ int safe_sub(int a, int b) {
 	return a - b;
 }
 
+//Go from signed to two'c complement
+int sm2tc(int x) {
+	int m = x >> 31;
+	return (~m & x) | (((x & 0x80000000) - x) & m);
+}
+
+//Calculate the necessary jump for Srav and others
+
+int summing(int x) {
+	int count = 1;
+	int sum = 0;
+	while (count < x) {
+		sum += (1 << (32 - count))
+	}
+	return sum;
+}
+
 // Start of Arithmetic functions
 // Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(int register2, int register3) {
@@ -815,6 +864,14 @@ int srlv(int register2, int register3) {
 	return RegisterFile[register2] >> RegisterFile[register3];
 }
 
+int sra(int register2, int number) {
+	return (RegisterFile[register2] >> number + summing(number) * (RegisterFile[register2] >> 31));
+}
+
+int srav(int register2, int register3) {
+	return (RegisterFile[register2] >> RegisterFile[register3] + summing(RegisterFile[register3]) * (RegisterFile[register2] >> 31));
+}
+
 // Start Data Transfer functions
 
 // Memory Stage helpers
@@ -855,8 +912,10 @@ unsigned char lbu_read(int registerAndIndex){
 // WriteBack Stage helpers
 
 // Load Word (WriteBack Stage)
-int lw_write(int register1, int value) {
-	return RegisterFile[register1] = value;
+void register_write(int register1, int value) {
+	if (register1 != 0){
+		RegisterFile[register1] = value;
+	} 
 }
 /*
 // Load Halfword (WriteBack Stage)
@@ -906,7 +965,7 @@ unsigned char lbu(int register1, int value) {
 */
 // Store Word (WriteBack Stage)
 void sw(int register1, int registerAndIndex) {
-	data_memory[registerAndIndex/4] = data_memory[registerAndIndex/4] = register1;
+	data_memory[registerAndIndex/4] = register1;
 }
 
 
