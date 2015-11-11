@@ -694,6 +694,12 @@ int safe_sub(int a, int b) {
 	return a - b;
 }
 
+//Go from signed to two'c complement
+int sm2tc(int x) {
+	int m = x >> 31;
+	return (~m & x) | (((x & 0x80000000) - x) & m);
+}
+
 // Start of Arithmetic functions
 //TODO: Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
 int add(int register2, int register3) {
