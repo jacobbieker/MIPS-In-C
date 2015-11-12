@@ -989,52 +989,53 @@ void register_write(int register1, int value) {
 		RegisterFile[register1] = value;
 	} 
 }
-/*
+
 // Load Halfword (WriteBack Stage)
 short lh_write(short register1, int value) {
-	if (register2 > 65536 && register2 < -65536){ // 65536 for the maximum a short can contain
-		perror("Overflow Error");
-		exit(-1);
-	} else {
-		return RegisterFile[register1] = value;
+	if (value % 4 == 0 || value % 4 == 1) {
+		register1 = (data_memory[value/4] >> 16);
+	} else if (value % 4 == 2 || value % 4 == 3) {
+		register1 = ((data_memory[value/4] << 16) >> 16);
 	}
 }
-*/
-/*
+
+
 // Load Halfword Unsigned (WriteBack Stage)
-unsigned short lhu(int register2, int value) {
-	if (!(RegisterFile[register2] < 256 && RegisterFile[register2] > 0){ // 256 for the maximum a short can contain
-		perror("Overflow Error");
-		exit(-1);
-	} else {
-		// there is conflicting types here
-		return RegisterFile[register1] = value;
+unsigned short lhu(int register1, int value) {
+	if (value % 4 == 0 || value % 4 == 1) {
+		register1 = (data_memory[value/4] >> 16);
+	} else if (value % 4 == 2 || value % 4 == 3) {
+		register1 = ((data_memory[value/4] << 16) >> 16);
 	}
 }
 
 
 // Load Byte (WriteBack Stage)
 char lb(int register1, int value) {
-	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > -10){ // 10 for the maximum a char can contain
-		perror("Overflow Error");
-		exit(-1);
-	} else {
-		// there is conflicting types here
-		return RegisterFile[register1] = value;
+	if (value % 4 == 0) {
+		register1 = data_memory[value/4] >> 24;
+	} else if (value % 4 == 1) {
+		register1 = (data_memory[value/4] << 8) >> 24;
+	} else if (value % 4 == 2) {
+		register1 = (data_memory[value/4] << 16) >> 24;
+	} else if (value % 4 == 3) {
+		register1 = (data_memory[value/4] << 24) >> 24;
 	}
 }
 
 // Load Byte Unsigned (WriteBack Stage)
 unsigned char lbu(int register1, int value) {
-	if (!(RegisterFile[register2] < 10 && RegisterFile[register2] > 0){ // 10 for the maximum a char can contain
-		perror("Overflow Error");
-		exit(-1);
-	} else {
-		// there is conflicting types here
-		return RegisterFile[register1] = value;
+	if (value % 4 == 0) {
+		register1 = data_memory[value/4] >> 24;
+	} else if (value % 4 == 1) {
+		register1 = (data_memory[value/4] << 8) >> 24;
+	} else if (value % 4 == 2) {
+		register1 = (data_memory[value/4] << 16) >> 24;
+	} else if (value % 4 == 3) {
+		register1 = (data_memory[value/4] << 24) >> 24;
 	}
 }
-*/
+
 // Store Word (WriteBack Stage)
 void sw(int register1, int registerAndIndex) {
 	data_memory[registerAndIndex/4] = register1;
