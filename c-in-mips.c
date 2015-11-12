@@ -25,6 +25,9 @@
 #include <math.h>
 #include <limits.h>
 
+static char *filenm = "bubble.asm";
+
+
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[32][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
 static char RegisterNumberNames[32][4] = {"$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28","$29","$30","$31"};
@@ -275,9 +278,10 @@ jump_names: the array holding all jump names in char* form
 void america();
 
 int main() {
-int i=0; char *a;
+    int i=0; char *a;
     
-    readmips("bubble.asm");
+    readmips(filenm);
+    /*
     while(instructions[i]!=NULL){
         printf("%s\n",instructions[i]);
         ++i;
@@ -285,25 +289,13 @@ int i=0; char *a;
     i=0;
     while(jump_names[i]!=NULL){
         printf("%d, %s\n", jump_locations[i], jump_names[i]);
-        if(strcmp(instructions[jump_locations[i]],"")!=0){
+        if((instructions[jump_locations[i]]!=NULL)&&(strcmp(instructions[jump_locations[i]],"")!=0)){
             printf("%s\n", instructions[jump_locations[i]]);
         } else{
             printf("WOWOOWOOWOWOOW\n");
         }
         i++;
-    }
-
-    /*a="lw $t5 -4($fp)";
-    printf("%s\n", a); decodeinstruction(a);
-    a="sw $t6 0($s0)";
-    printf("%s\n", a); decodeinstruction(a);
-    a="sub $gp $s7 $t8";
-    printf("%s\n", a); decodeinstruction(a);
-    a="bne $t0,    $t1, loop";
-    printf("%s\n", a); decodeinstruction(a);
-    */
-    decodeinstruction("");
-
+    }*/
     printf("\n\n\n\n\n\n");
     controllogic();
     
@@ -316,6 +308,7 @@ void readmips(char* filename){
     int lineno=0; int charno=0; int i=0; int spacebreak=0; int jumpno=0;
     char buffer[128];
     char* temp; char* temploc;
+    int abc=0;
     if (assembly == 0)
     {
         //fopen returns 0, the NULL pointer, on failure
@@ -328,7 +321,7 @@ void readmips(char* filename){
             while(buffer[charno]!='#' && buffer[charno]!='\n'){
                 charno++;
             } 
-            temp = (char*)malloc(charno+1);
+            temp = (char*)malloc(sizeof(char)*(charno+1));
             memset(temp,0,charno+1); // clear new memory
             i=0; spacebreak=0;
             while(isspace(buffer[i])){
@@ -345,15 +338,17 @@ void readmips(char* filename){
                     jumpno++;
                     memset(temp,0,i+1); //reset the memory
                     while(isspace(buffer[++i])){}
-                    spacebreak+=i;
+                    spacebreak=i;
                 }
                 *(temp+i-spacebreak)=buffer[i];
                 i++;
             }
-            if (charno!=0 && spacebreak!=charno){
+            
+            if (charno!=0 && spacebreak<charno){
                 instructions[lineno]=temp;
                 lineno++; //rewrite over memory if the line has no instruction
             }
+            abc++;
         }
     }
 }
@@ -361,9 +356,9 @@ void readmips(char* filename){
 void printstate(){
     int i;    
     for(i=0;i<32;i++){
-        printf("%d,",RegisterFile[i]);
+        printf("%s:%d,",RegisterFileNames[i],RegisterFile[i]);
     } printf("\n");
-    for(i=0;i<32;i++){
+    for(i=0;i<70;i++){
         printf("%d,",data_memory[i]);
     } printf("\n");
 }
@@ -378,16 +373,10 @@ int controllogic(){
     struct exmem* exmem_ptr;
     struct memwb* memwb_ptr;
     int mainct =0;
-    
+    printf("Control initiated:\n");
     while(1){
         printf("pc:%d\n",pc);
         printstate();
-        if(pc==24){
-            mainct++;
-            if(mainct==2){
-                break;
-            }
-        }
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         printf("%s, %d\n", cur_instruction,(int)strlen(cur_instruction));
         instr = decodeinstruction(cur_instruction);
@@ -405,8 +394,12 @@ int controllogic(){
         } else{
             exit(1);
         }
-        if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=42)){
+        if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=Jal)){
             pc=((*exmem_ptr).will_branch);
+        } else if((*exmem_ptr).instrnum==Jal){
+            pc=((*exmem_ptr).will_branch);
+            memwb_ptr = memory_rw(exmem_ptr);
+            writeback(*memwb_ptr);
         } else{
             memwb_ptr = memory_rw(exmem_ptr);
             writeback(*memwb_ptr);
@@ -416,7 +409,11 @@ int controllogic(){
 }
 
 char* getinstruction(int pc){
-    return instructions[pc];
+    if(instructions[pc]!=NULL){
+        return instructions[pc];
+    } else{
+        return "";
+    }
 }
 
 struct Instruction_Type* decodeinstruction(char* instr){
@@ -429,10 +426,11 @@ struct Instruction_Type* decodeinstruction(char* instr){
     struct Instruction_Type* instr_ptr=&instr_type;
     memset(instr_ptr,0,sizeof(instr_type));
     memset(buffer,0,sizeof(buffer));
+
     if(strlen(instr)==0){
         instrnum=Break;
     } else{
-        while(*(instr+i)!=' '){
+        while(!isspace(*(instr+i))){
             buffer[i]=*(instr+i);
             i++;
         }
@@ -478,7 +476,8 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
         exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.shamt, r_instr.instr);
         exmem_reg.dest_register = r_instr.dest_register;
     } else if(r_instr.instr<=Divu){ // mult and similar
-        exmem_reg.alu_result = alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
+        exmem_reg.alu_result = 0;
+        alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
     } else if(r_instr.instr==MfcZ){
         exmem_reg.alu_result = controlRegisterZ[RegisterFile[r_instr.s_register1]];
         exmem_reg.dest_register = r_instr.dest_register;
@@ -488,7 +487,7 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
     } else if(r_instr.instr<=Mflo){ // mfhi and mflo
         exmem_reg.dest_register = r_instr.dest_register;
     } else{ // jr
-        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi)>>2;
+        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
     }
 
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
@@ -512,11 +511,11 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
         exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to load from
         exmem_reg.dest_register=i_instr.dest_register; // the register to load to
     } else if(i_instr.instr==Bne){ // bne - if one is less than the other set branch location
-        if((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.s_register, i_instr.dest_register,Slt)==1)){
+        if((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.dest_register, i_instr.s_register,Slt)==1)){
             exmem_reg.will_branch=i_instr.immediate;
         }
     } else if(i_instr.instr==Beq){ // beq
-        if(!((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.s_register, i_instr.dest_register,Slt)==1))){
+        if((alu(i_instr.s_register, i_instr.dest_register,Slt)==0)&&(alu(i_instr.dest_register, i_instr.s_register,Slt)==0)){
             exmem_reg.will_branch=i_instr.immediate;
         }
     } else{ //just some alu operations
@@ -539,7 +538,7 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
         exmem_reg.will_branch=j_instr.jump_to;
     } else{ // jal
         exmem_reg.will_branch=j_instr.jump_to;
-        exmem_reg.alu_result=pc; exmem_reg.dest_register=30;
+        exmem_reg.alu_result=pc; exmem_reg.dest_register=31;
     }
 
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
@@ -896,7 +895,9 @@ void mult(int register2, int register3) {
 	mult1 = (long long int) RegisterFile[register2];
 	mult2 = (long long int) RegisterFile[register3];
 	LO = ((mult1 * mult2) << 32) >> 32;
+    printf("lo:%d\n",LO);
 	HI = ( mult1* mult2) >> 32;
+    printf("hi:%d\n",HI);
 }
 
 void multu(int register2, int register3) {
