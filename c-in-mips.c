@@ -834,18 +834,6 @@ int safe_add(int a, int b) {
 	return a + b;
 }
 
-int safe_sub(int a, int b) {
-	if (a < INT_MAX && ( b < 0 && b > a)) {
-		perror("Overflow Error");
-		exit(-1);
-	}
-	else if (a > INT_MIN && b > INT_MIN + a) {
-		perror("Overflow Error");
-		exit(-1);
-	}
-	return a - b;
-}
-
 //Go from signed to two'c complement
 int sm2tc(int x) {
 	int m = x >> 31;
@@ -864,36 +852,36 @@ int summing(int x) {
 }
 
 // Start of Arithmetic functions
-// Mult and Divide, all operations with 'u' have to use unsigned values, others ahve to check for overflow
+// Mult and Divide, all operations with 'u' have to use unsigned values, others have to check for overflow
 int add(int register2, int register3) {
-	return safe_add(RegisterFile[register2], RegisterFile[register3]);
+	return safe_add(register2, register3);
 }
 
 unsigned int addu(int register2, int register3) {
-	return RegisterFile[register2] + RegisterFile[register3];
+	return register2 + register3;
 }
 
 int sub(int register2, int register3) {
-	return safe_add(RegisterFile[register2], 0-RegisterFile[register3]);
+	return safe_add(register2, 0-register3);
 }
 
 unsigned int subu(int register2, int register3) {
-	return RegisterFile[register2] - RegisterFile[register3];
+	return register2 - register3;
 }
 
 int addi(int register2, int number) {
-	return safe_add(RegisterFile[register2], number);
+	return safe_add(register2, number);
 }
 
 unsigned int addiu(int register2, int number) {
-	return RegisterFile[register2] + number;
+	return register2 + number;
 }
 
 void mult(int register2, int register3) {
 	long long unsigned int mult1;
 	long long unsigned int mult2;
-	mult1 = (long long int) RegisterFile[register2];
-	mult2 = (long long int) RegisterFile[register3];
+	mult1 = (long long int) register2;
+	mult2 = (long long int) register3;
 	LO = ((mult1 * mult2) << 32) >> 32;
     printf("lo:%d\n",LO);
 	HI = ( mult1* mult2) >> 32;
@@ -903,46 +891,46 @@ void mult(int register2, int register3) {
 void multu(int register2, int register3) {
 	long long unsigned int mult1;
 	long long unsigned int mult2;
-	mult1 = (long long unsigned int) RegisterFile[register2];
-	mult2 = (long long unsigned int) RegisterFile[register3];
+	mult1 = (long long unsigned int) register2;
+	mult2 = (long long unsigned int) register3;
 	LO = ((mult1 * mult2) << 32) >> 32;
 	HI = (mult1* mult2) >> 32;
 }
 
 void mdiv(int register2, int register3) {
-	LO = RegisterFile[register2] / RegisterFile[register3];
-	HI = RegisterFile[register2] % RegisterFile[register3];
+	LO = register2 / register3;
+	HI = register2 % register3;
 }
 
 void divu(int register2, int register3) {
-	LO = RegisterFile[register2] / RegisterFile[register3];
-	HI = RegisterFile[register2] % RegisterFile[register3];
+	LO = register2 / register3;
+	HI = register2 % register3;
 }
 
 //Start Bitwise Operation Functions
 
 int sll(int register2, int number) {
-	return RegisterFile[register2] << number;
+	return register2 << number;
 }
 
 int srl(int register2, int number) {
-	return RegisterFile[register2] >> number;
+	return register2 >> number;
 }
 
 int sllv(int register2, int register3) {
-	return RegisterFile[register2] << RegisterFile[register3];
+	return register2 << register3;
 }
 
 int srlv(int register2, int register3) {
-	return RegisterFile[register2] >> RegisterFile[register3];
+	return register2 >> register3;
 }
 
 int sra(int register2, int number) {
-	return (RegisterFile[register2] >> number + summing(number) * (RegisterFile[register2] >> 31));
+	return (register2 >> number + summing(number) * (register2 >> 31));
 }
 
 int srav(int register2, int register3) {
-	return (RegisterFile[register2] >> RegisterFile[register3] + summing(RegisterFile[register3]) * (RegisterFile[register2] >> 31));
+	return (register2 >> register3 + summing(register3) * (register2 >> 31));
 }
 
 // Start Data Transfer functions
@@ -1068,12 +1056,12 @@ void sb(int register1, int registerAndIndex) {
 
 // Move from HI (WriteBack Stage)
 void mfhi(int register2) {
-	RegisterFile[register2] = HI;
+	register2= HI;
 }
 
 // Move from LO (WriteBack Stage)
 void mflo(int register2) {
-	RegisterFile[register2] = LO;
+	register2 = LO;
 }
 
 void mtcZ(int Zregister, int value){
@@ -1085,31 +1073,31 @@ void mtcZ(int Zregister, int value){
 // Start of Logical functions
 
 int and(int register2, int register3) {
-	return (RegisterFile[register2] & RegisterFile[register3]);
+	return (register2 & register3);
 }
 
 int andi(int register2, int number) {
-	return (RegisterFile[register2] & number);
+	return (register2 & number);
 }
 
 int or(register2, register3) {
-    return (RegisterFile[register2] | RegisterFile[register3]);
+    return (register2 | register3);
 }
 
 int ori(int register2, int number) {
-	return (RegisterFile[register2] | number);
+	return (register2 | number);
 }
 
 int xor(int register2, int register3) {
-	return (RegisterFile[register2] ^ RegisterFile[register3]);
+	return (register2 ^ register3);
 }
 
 int nor(int register2, int register3) {
-	return (~(RegisterFile[register2] | RegisterFile[register3]));
+	return (~(register2 | register3));
 }
 
 int slt(int register2, int register3) {
-	if (RegisterFile[register2] < RegisterFile[register3]) {
+	if (register2 < register3) {
 		return 1;
 	}
 	else {
@@ -1118,7 +1106,7 @@ int slt(int register2, int register3) {
 }
 
 unsigned int sltu(int register2, int register3) {
-	if (RegisterFile[register2] < RegisterFile[register3]) {
+	if (register2 < register3) {
 		return 1;
 	}
 	else {
@@ -1127,7 +1115,7 @@ unsigned int sltu(int register2, int register3) {
 }
 
 int slti(int register2, int number) {
-	if (RegisterFile[register2] < number) {
+	if (register2 < number) {
 		return 1;
 	}
 	else {
