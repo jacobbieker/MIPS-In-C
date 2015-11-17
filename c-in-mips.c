@@ -378,9 +378,6 @@ void printstate(){
 int controllogic(){
     int pc=0;
     char *cur_instruction; //analogous to if/id pipeline register
-    struct j_type *j_instr_ptr;
-    struct i_type *i_instr_ptr;
-    struct r_type *r_instr_ptr;
     struct Instruction_Type* instr;
     struct exmem* exmem_ptr;
     struct memwb* memwb_ptr;
@@ -392,21 +389,10 @@ int controllogic(){
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         printf("%s, %d\n", cur_instruction,(int)strlen(cur_instruction));
         instr = decodeinstruction(cur_instruction);
-        if((*instr).instr<Addi){
-            r_instr_ptr=(struct r_type*)instr;
-            exmem_ptr = execute_r(r_instr_ptr);
-        } else if((*instr).instr<J){
-            i_instr_ptr=(struct i_type*)instr;
-            exmem_ptr = execute_i(i_instr_ptr);
-        } else if((*instr).instr<Break){
-            j_instr_ptr=(struct j_type*)instr;
-            exmem_ptr = execute_j(j_instr_ptr,pc);
-        } else if((*instr).instr==Break){ // this is for break or empty string
-            break;
-        } else{
-            exit(1);
-        }
-        if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=Jal)){
+        exmem_ptr = execute(instr, &pc);
+        memwb_ptr = memory_rw(exmem_ptr);
+        writeback(memwb_ptr);
+        /*if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=Jal)){
             pc=((*exmem_ptr).will_branch);
         } else if((*exmem_ptr).instrnum==Jal){
             pc=((*exmem_ptr).will_branch);
@@ -415,7 +401,7 @@ int controllogic(){
         } else{
             memwb_ptr = memory_rw(exmem_ptr);
             writeback(*memwb_ptr);
-        }
+        }*/
     }
     return 0;
 }
@@ -474,77 +460,105 @@ struct Instruction_Type* decodeinstruction(char* instr){
     return instr_ptr;
 }
 
-struct exmem* execute_r(struct r_type *r_type_ptr){
-    struct r_type r_instr = *r_type_ptr;
-    struct exmem exmem_reg;
-    struct exmem* exmem_ptr = &exmem_reg;
-    memset(exmem_ptr, 0, sizeof(exmem_reg));
-
-    exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
-    if(r_instr.instr<=Srav){ // all normal 3 register r types
-        exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.s_register2, r_instr.instr);
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<=Sra){ // shift operations
-        exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.shamt, r_instr.instr);
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<=Divu){ // mult and similar
-        exmem_reg.alu_result = 0;
-        alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
-    } else if(r_instr.instr==MfcZ){
-        exmem_reg.alu_result = controlRegisterZ[RegisterFile[r_instr.s_register1]];
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr==MtcZ){
-        exmem_reg.alu_result = alu(r_instr.dest_register,0,Addi);
-        exmem_reg.dest_register = r_instr.s_register1;
-    } else if(r_instr.instr<=Mflo){ // mfhi and mflo
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else{ // jr
-        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
+struct exmem* execute(struct Instruction_Type* instr, int* pc_ptr){
+    struct j_type *j_instr_ptr;
+    struct i_type *i_instr_ptr;
+    struct r_type *r_instr_ptr;
+    struct exmem *exmem_ptr;
+    int new_pc = *pc_ptr;
+    
+    if((*instr).instr<Addi){
+        r_instr_ptr=(struct r_type*)instr;
+        exmem_ptr = execute_r(r_instr_ptr);
+    } else if((*instr).instr<J){
+        i_instr_ptr=(struct i_type*)instr;
+        exmem_ptr = execute_i(i_instr_ptr);
+    } else if((*instr).instr<Break){
+        j_instr_ptr=(struct j_type*)instr;
+        exmem_ptr = execute_j(j_instr_ptr,pc);
+    } else if((*instr).instr==Break){ // this is for break or empty string
+        break;
+    } else{
+        exit(1);
+    }
+    
+    if((*exmem).will_branch!=0){
+        new_pc = (*exmem).will_branch;
+        *pc_ptr = new_pc;
     }
 
+    return exmem_ptr;
+}
+
+struct exmem* execute_r(struct r_type *r_type_ptr){
+    struct r_type r_instr = *r_type_ptr;
+    struct exmem* exmem_ptr = (struct exmem*)calloc(1,sizeof(struct exmem));
+    struct exmem exmem_reg = *exmem_ptr;
+
+    exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
+    if(r_instr.instr==Jr) { // get address from RF
+        exmem_reg.will_branch = r_instr.dest_register;
+    } else if(r_instr.instr>=Mfhi) { //mfhi, mflo save to register
+        exmem_reg.dest_register = r_instr.dest_register;
+    } else if(r_instr.instr==MfcZ){ // save to in dest, save from location in s_r1
+        exmem_reg.dest_register = r_instr.dest_register;
+        exmem_reg.alu_result = r_instr.s_register1;
+    } else if(r_instr.instr==MtcZ){ // save value in dest, save to location in sr1
+        exmem_reg.dest_register = r_instr.s_register1; // location for cZ
+        exmem_reg.alu_result = r_instr.dest_register; // value from reg
+    } else if(r_instr.instr>=Mult){ // all mult, div operations, save values to 2 source registers
+        alu(r_instr.s_register1, r_instr.s_register2, r_instr.instr);
+        exmem_reg.alu_result = 0;
+    } else if(r_instr.instr>=Sll){ // shift operations - dest, value of s_r, shamt
+        exmem_reg.dest_register = r_instr.dest_register;
+        exmem_reg.alu_result = alu(r_instr.s_register1, r_instr.shamt, r_instr.instr);
+    } else{ //all normal 3 register operations - values of 2 source regs
+        exmem_reg.dest_register = r_instr.dest_register;
+        exmem_reg.alu_result = alu(r_instr.s_register1, r_instr.s_register2, r_instr.instr);
+    }
+    free(r_type_ptr);
+    
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
     return exmem_ptr;
 }
 
 struct exmem* execute_i(struct i_type *i_type_ptr){
     struct i_type i_instr = *i_type_ptr;
-    struct exmem exmem_reg;
-    struct exmem* exmem_ptr = &exmem_reg;
-    memset(exmem_ptr, 0, sizeof(exmem_reg));
+    struct exmem* exmem_ptr = (struct exmem*)calloc(1,sizeof(struct exmem));
+    struct exmem exmem_reg = *exmem_ptr;
 
     exmem_reg.instrnum=i_instr.instr; exmem_reg.will_branch=0;
-    if(i_instr.instr==Lui){ //lui
+    if(i_instr.instr==Lui){ // lui needs dest and imm
+        exmem_reg.dest_register = i_instr.dest_register;
         exmem_reg.alu_result=i_instr.immediate << 16;
-        exmem_reg.dest_register=i_instr.dest_register;
-    } else if(i_instr.instr>=Sw){ // all standard memory stores
-        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to store into
-        exmem_reg.dest_register=alu(i_instr.dest_register,0,Addi); // the value to put there
-    } else if(i_instr.instr>=Lw){ // all standard memory loads
-        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to load from
-        exmem_reg.dest_register=i_instr.dest_register; // the register to load to
-    } else if(i_instr.instr==Bne){ // bne - if one is less than the other set branch location
+    } else if(i_instr.instr>=Sw){ // stores need value of dest, s, imm
+        exmem_reg.dest_register = i_instr.dest_register;
+        exmem_reg.alu_result = alu(i_instr.s_register, i_instr.immediate, Addi);
+    } else if(i_instr.instr>=Lw){ //writes to dest_reg, needs value of s, imm
+        exmem_reg.dest_register = i_instr.dest_register;
+        exmem_reg.alu_result = alu(i_instr.s_register, i_instr.immediate, Addi);
+    } else if(i_instr.instr==Bne){
         if((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.dest_register, i_instr.s_register,Slt)==1)){
             exmem_reg.will_branch=i_instr.immediate;
         }
-    } else if(i_instr.instr==Beq){ // beq
+    } else if(i_instr.instr==Beq){
         if((alu(i_instr.s_register, i_instr.dest_register,Slt)==0)&&(alu(i_instr.dest_register, i_instr.s_register,Slt)==0)){
             exmem_reg.will_branch=i_instr.immediate;
         }
-    } else{ //just some alu operations
-        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
-        exmem_reg.dest_register=i_instr.dest_register;
+    } else{
+        exmem_reg.alu_result = alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
+        exmem_reg.dest_register = i_instr.dest_register;
     }
-
+    free(i_type_ptr);
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
     return exmem_ptr;
 }
 
 struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
     struct j_type j_instr = *j_type_ptr;
-    struct exmem exmem_reg;
-    struct exmem* exmem_ptr = &exmem_reg;
-    memset(exmem_ptr,0,sizeof(exmem_reg));
-
+    struct exmem* exmem_ptr = (struct exmem*)calloc(1,sizeof(struct exmem));
+    struct exmem exmem_reg = *exmem_ptr;
+    
     exmem_reg.instrnum=j_instr.instr;
     if(j_instr.instr==J){ // j
         exmem_reg.will_branch=j_instr.jump_to;
@@ -552,7 +566,8 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
         exmem_reg.will_branch=j_instr.jump_to;
         exmem_reg.alu_result=pc; exmem_reg.dest_register=31;
     }
-
+    free(j_type_ptr);
+    
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
     return exmem_ptr;
 }
@@ -646,9 +661,8 @@ int alu(int operandA, int operandB, int Operation) {
 
 struct memwb *memory_rw(struct exmem* exmem_ptr){
     struct exmem exmem_reg = *exmem_ptr;
-    struct memwb memwb_reg;
-    struct memwb *memwb_ptr = &memwb_reg;
-    memset(memwb_ptr,0,sizeof(memwb_reg));
+    struct memwb *memwb_ptr = (struct memwb*)calloc(1, sizeof(struct memwb));
+    struct memwb memwb_reg = *memwb_ptr;
 
     memwb_reg.instrnum=exmem_reg.instrnum;
     memwb_reg.dest_register=exmem_reg.dest_register;
@@ -674,13 +688,13 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
     } else{
         memwb_reg.value=exmem_reg.alu_result;
     }
-    
+    free(exmem_ptr);
     printf("instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
     return memwb_ptr;
 }
 
-void writeback(struct memwb memwb_ptr){
-    struct memwb memwb_reg = memwb_ptr;
+void writeback(struct memwb* memwb_ptr){
+    struct memwb memwb_reg = *memwb_ptr;
     
     printf("instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
     if(memwb_reg.instrnum==Mfhi){
@@ -692,53 +706,78 @@ void writeback(struct memwb memwb_ptr){
     } else{
         register_write(memwb_reg.dest_register,memwb_reg.value);
     }
+    
+    free(memwb_ptr);
 }
 
 
 
 // decode helper functions
 struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
-    struct r_type r_instr; 
-    struct r_type *r_type_ptr=&r_instr;
+    struct r_type *r_type_ptr=(struct r_type*)calloc(1, sizeof(struct r_type*));
+    struct r_type r_instr = *r_type_ptr;
 
     r_instr.instr=instrnum;
-    r_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum<Mfhi){ // some only need 1 or 2 registers
-        r_instr.s_register1=nextregister(instr, ptr);
-        if(instrnum<Sll){
-            r_instr.s_register2=nextregister(instr, ptr);
-        } else if(instrnum<Mult){
-            r_instr.shamt=(char)nextint(instr, ptr);
-        }
+    if(instrnum==Jr) { // get address from RF
+        r_instr.dest_register=RegisterFile[nextregister(instr, ptr)];
+    } else if(instrnum>=Mfhi) { //mfhi, mflo save to register
+        r_instr.dest_register=nextregister(instr, ptr);
+    } else if(instrnum==MfcZ){ // save to in dest, save from location in s_r1
+        r_instr.dest_register=nextregister(instr, ptr);
+        r_instr.s_register1=controlRegisterZ[RegisterFile[nextregister(instr, ptr)]];
+    } else if(instrnum==MtcZ){ // save value in dest, save to location in sr1
+        r_instr.dest_register=RegisterFile[nextregister(instr, ptr)]; //value
+        r_instr.s_register1=RegisterFile[nextregister(instr, ptr)]; // location
+    } else if(instrnum>=Mult){ // all mult, div operations, save values to 2 source registers
+        r_instr.s_register1=RegisterFile[nextregister(instr, ptr)];
+        r_instr.s_register2=RegisterFile[nextregister(instr, ptr)];
+    } else if(instrnum>=Sll){ // shift operations - dest, value of s_r, shamt
+        r_instr.dest_register=nextregister(instr, ptr);
+        r_instr.s_register1=RegisterFile[nextregister(instr, ptr)];
+        r_instr.shamt=nextint(instr, ptr);
+    } else{ //all normal 3 register operations - values of 2 source regs
+        r_instr.dest_register=nextregister(instr, ptr);
+        r_instr.s_register1=RegisterFile[nextregister(instr, ptr)];
+        r_instr.s_register2=RegisterFile[nextregister(instr, ptr)];
     }
-
+    
     return r_type_ptr;
 }
 
 struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
-    struct i_type i_instr;
-    struct i_type *i_type_ptr=&i_instr;
+    struct i_type *i_type_ptr=(struct i_type*)calloc(1, sizeof(struct i_type*));
+    struct i_type i_instr = *i_type_ptr;
     struct indexed_register *indreg_ptr;
 
-    i_instr.instr=instrnum;
-    i_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum==Lui){
+    i_instr.instr=instrnum;    
+    
+    if(instrnum==Lui){ // lui needs dest and imm
+        i_instr.dest_register=nextregister(instr, ptr);
         i_instr.immediate=nextint(instr, ptr);
-    } else if(instrnum>=Lw){
+    } else if(instrnum>=Sw){ // stores need value of dest, s, imm
+        i_instr.dest_register=RegisterFile[nextregister(instr, ptr)];
         indreg_ptr = nextindexedregister(instr, ptr);
-        i_instr.s_register=(*indreg_ptr).mem_register; i_instr.immediate=(*indreg_ptr).index;
+        i_instr.s_register=RegisterFile[(*indreg_ptr).mem_register]; i_instr.immediate=(*indreg_ptr).index;
+        free(indreg_ptr);
+    } else if(instrnum>=Lw){ //writes to dest_reg, needs value of s, imm
+        i_instr.dest_register=nextregister(instr, ptr);
+        indreg_ptr = nextindexedregister(instr, ptr);
+        i_instr.s_register=RegisterFile[(*indreg_ptr).mem_register]; i_instr.immediate=(*indreg_ptr).index;
+        free(indreg_ptr);
     } else if(instrnum>=Beq){
-        i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextjumploc(instr,ptr);
+        i_instr.dest_register=RegisterFile[nextregister(instr, ptr)];
+        i_instr.s_register=RegisterFile[nextregister(instr, ptr)]; i_instr.immediate=nextjumploc(instr,ptr);
     } else{
-        i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextint(instr, ptr);
+        i_instr.dest_register=nextregister(instr, ptr);
+        i_instr.s_register=RegisterFile[nextregister(instr, ptr)]; i_instr.immediate=nextint(instr, ptr);
     }
 
     return i_type_ptr;
 }
 
 struct j_type* make_j_type(int instrnum, char* instr, int* ptr){
-    struct j_type j_instr;
-    struct j_type *j_type_ptr=&j_instr;
+    struct j_type *j_type_ptr=(struct j_type*)calloc(1, sizeof(struct j_type*));
+    struct j_type j_instr = *j_type_ptr;
 
     j_instr.instr=instrnum;
     j_instr.jump_to=nextjumploc(instr, ptr);
@@ -807,9 +846,8 @@ int nextjumploc(char* instr, int* ptr){
 struct indexed_register* nextindexedregister(char* instr, int* ptr){
     char reg[8];
     int i=*ptr; int start; char newit;
-    struct indexed_register indreg;
-    struct indexed_register *indreg_ptr=&indreg;
-    memset(reg,0,sizeof(reg));
+    struct indexed_register *indreg_ptr=(struct indexed_register*)calloc(1,sizeof(indexed_register));
+    struct indexed_register indreg = *indreg_ptr;
     
     while(isspace(*(instr+i))){i++;}
     start=i;
