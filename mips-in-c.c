@@ -281,7 +281,6 @@ void america();
 
 int main() {
     int i=0; char *a;
-	pthread_t threads[NUM_THREADS];
 
     readmips(filenm);     
     /*
@@ -377,12 +376,14 @@ int controllogic(){
     struct memwb* memwb_ptr;
     int mainct =0;
     printf("Control initiated:\n");
+
+	pthread_t *threads;
     while(1){
-		instruction_fetch_thread = pthread_create(&thread[0], NULL, getinstructions, (void*) &pc);
-		instruction_decode_thread = pthread_create(&thread[1], NULL, decodeinstruction, (void*) cur_instruction);
-		execute_thread = pthread_create(&thread[2], NULL, execute, (void*) instr);
-		memory_access_thread = pthread_create(&thread[3], NULL, memory_rw, (void*) exmem_ptr);
-		write_back_thread = pthread_create(&thread[4], NULL, writeback, (void*) memwb_ptr);
+		pthread_create(&threads[0], NULL, getinstructions, (void*) &pc);
+		pthread_create(&threads[1], NULL, decodeinstruction, (void*) cur_instruction);
+		pthread_create(&threads[2], NULL, execute, (void*) instr);
+		pthread_create(&threads[3], NULL, memory_rw, (void*) exmem_ptr);
+		pthread_create(&threads[4], NULL, writeback, (void*) memwb_ptr);
 
         printf("pc:%d\n",pc);
         printstate();
@@ -415,11 +416,11 @@ int controllogic(){
         }
 
 		// Wait for each thread to finish
-		pthread_join(thread[0], NULL);
-		pthread_join(thread[1], NULL);
-		pthread_join(thread[2], NULL);
-		pthread_join(thread[3], NULL);
-		pthread_join(thread[4], NULL);
+		pthread_join(threads[0], NULL);
+		pthread_join(threads[1], NULL);
+		pthread_join(threads[2], NULL);
+		pthread_join(threads[3], NULL);
+		pthread_join(threads[4], NULL);
     }
     return 0;
 }
