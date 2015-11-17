@@ -413,6 +413,13 @@ int controllogic(){
             memwb_ptr = memory_rw(exmem_ptr);
             writeback(*memwb_ptr);
         }
+
+		// Wait for each thread to finish
+		pthread_join(thread[0], NULL);
+		pthread_join(thread[1], NULL);
+		pthread_join(thread[2], NULL);
+		pthread_join(thread[3], NULL);
+		pthread_join(thread[4], NULL);
     }
     return 0;
 }
