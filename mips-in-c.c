@@ -378,11 +378,11 @@ int controllogic(){
     int mainct =0;
     printf("Control initiated:\n");
     while(1){
-		instruction_fetch_thread = pthread_create(&thread[0], NULL, void getinstruction);
-		instruction_decode_thread = pthread_create(&thread[1], NULL, decodeinstruction);
-		execute_thread = pthread_create(&thread[2], NULL, execute);
-		memory_access_thread = pthread_create(&thread[3], NULL, exmem);
-		write_back_thread = pthread_create(&thread[4], NULL, memwb);
+		instruction_fetch_thread = pthread_create(&thread[0], NULL, (void*) getinstruction);
+		instruction_decode_thread = pthread_create(&thread[1], NULL, (void*) decodeinstruction);
+		execute_thread = pthread_create(&thread[2], NULL, (void*) execute);
+		memory_access_thread = pthread_create(&thread[3], NULL, (void*) exmem);
+		write_back_thread = pthread_create(&thread[4], NULL, (void*) memwb);
 
         printf("pc:%d\n",pc);
         printstate();
