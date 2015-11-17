@@ -24,6 +24,8 @@
 #include <ctype.h>
 #include <math.h>
 #include <limits.h>
+#include <pthread.h>
+#define NUM_THREADS	5
 
 static char *filenm = "bubble.asm";
 
@@ -279,7 +281,8 @@ void america();
 
 int main() {
     int i=0; char *a;
-    
+	pthread_t threads[NUM_THREADS];
+
     readmips(filenm);
     /*
     while(instructions[i]!=NULL){
@@ -299,6 +302,7 @@ int main() {
     printf("\n\n\n\n\n\n");
     controllogic();
     
+	pthread_exit(NULL);
     america();
     return 0;
 }
