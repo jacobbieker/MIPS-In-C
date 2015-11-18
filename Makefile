@@ -13,19 +13,19 @@
   $(TARGET): $(TARGET).c
   	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
 
-  test1:
+ test1:
 		$(TARGET) test/gcd.asm > output/gcd.asm
 
-	test2:
+ test2:
 		$(TARGET) test/bubble.asm > output/bubble.txt
 
-	test3:
+ test3:
 		$(TARGET) test/function.asm > output/function.txt
 
-	test4:
+ test4:
 		$(TARGET) test/fibonacci.asm > output/fibonacci.asm
 
-	test: test1 test2 test3 test4
+ test: test1 test2 test3 test4
 
   clean:
   	-rm -f *.o *.out
