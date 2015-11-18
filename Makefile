@@ -11,7 +11,7 @@
   all: $(TARGET)
 
   $(TARGET): $(TARGET).c
-		$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+		$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c -lpthread
 
  test1:
 		$(TARGET) test/gcd.asm > output/gcd.asm
