@@ -16,7 +16,7 @@
  *      Single cycle processor simulation in C: implement (a) a register file, (b) an ALU
  *      (c) control logic, and (d) main memory.
  *
- *      Week 2:
+ *      Week 2: (WE ARE HERE!)
  *      Convert the single cycle processor into a pipelined 5-stage processor.
  *
  *      Week 3:
