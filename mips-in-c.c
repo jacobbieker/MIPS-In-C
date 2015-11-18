@@ -419,6 +419,10 @@ int controllogic(){
 		pthread_join(threads[2], NULL);
 		pthread_join(threads[3], NULL);
 		pthread_join(threads[4], NULL);
+
+		// move data from intermediate to used args
+
+
     }
     return 0;
 }
