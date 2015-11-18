@@ -14,16 +14,16 @@
   	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
 
   test1:
-		$(TARGET) < test/gcd.asm > output/gcd.asm
+		$(TARGET) test/gcd.asm > output/gcd.asm
 
 	test2:
-		$(TARGET) < test/bubble.asm > output/bubble.txt
+		$(TARGET) test/bubble.asm > output/bubble.txt
 
 	test3:
-		$(TARGET) < function.asm > output/function.txt
+		$(TARGET) test/function.asm > output/function.txt
 
 	test4:
-		$(TARGET) < fibonacci.asm > output/fibonacci.asm
+		$(TARGET) test/fibonacci.asm > output/fibonacci.asm
 
 	test: test1 test2 test3 test4
 

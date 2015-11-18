@@ -27,8 +27,6 @@
 #include <pthread.h>
 #define NUM_THREADS	5
 
-static char *filenm = "gcd.asm";
-
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[32][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
@@ -287,8 +285,15 @@ jump_names: the array holding all jump names in char* form
 */
 void america();
 
-int main() {
+int main(int argc, char *argv[]) {
     int i=0; char *a;
+
+	for (i = 1; i< argc; i++) {
+		printf("\narg%d=%s", i, argv[i]);
+		if (i = 1) {
+			char *filenm = argv[i]; //Input file
+		}
+	}
 
     readmips(filenm);     
     /*
