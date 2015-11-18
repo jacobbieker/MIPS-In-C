@@ -309,7 +309,7 @@ void america();
 int main(int argc, char *argv[]) {
     int i=0; char *a; char* filenm;
 
-	for (i = 1; i< argc; i++) {
+	for (i = 0; i< argc; i++) {
 		printf("\narg%d=%s", i, argv[i]);
 		if (i == 1) {
 			char *filenm = argv[i]; //Input file
