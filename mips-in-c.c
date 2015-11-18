@@ -102,14 +102,26 @@ struct memwb {
 /* readmips(char*) reads the assembly file specified by filename into the instructions data array*/
 void readmips(char* filename);
 
+/*void wrapper for getinstruction to use in pthreading*/
+void* fetchvoid(void*);
+
 /*getinstruction(int pc) is an interface for the control unit to access the instructions stored
-in memory, by index specified by pc*/
-char* getinstruction(int pc);
+in memory, by index specified by  the value stored in pc_ptr*/
+char* getinstruction(int *pc_ptr);
+
+/*void wrapper for decodeinstruction for use in pthreading*/
+void* decodevoid(void*);
 
 /*decodeinstruction(char*) takes an assembly instruction specified by instr and converts to an
 Instruction_Type, converting the function, any registers, and any immediate values to integers
 that are easier to operate on*/
 struct Instruction_Type* decodeinstruction(char* instr);
+
+/*void wrapper for execute for use in pthreading*/
+void* executevoid(void*);
+
+/*calls the appropriate execute_r, execute_i, execute_j*/
+struct exmem* execute(struct Instruction_Type*);
 
 /*execute_r(struct r_type*) takes a pointer to an r_type instruction and uses the data within to
 execute the instruction and put the correct data into an exmem register struct, which can then be
@@ -129,13 +141,19 @@ struct exmem* execute_j(struct j_type*, int pc);
 and performs and returns the appropriate value for the operation when performed with the two input values*/
 int alu(int, int, int);
 
+/*void wrapper for memory_wb for use in pthreading*/
+void* memory_rw_void(void*);
+
 /*memory_rw(struct exmem*) takes a pointer to an exmem register struct and uses that to access the memory if needed
 and create a memwb struct to pass data on to the register writeback pipeline phase*/
 struct memwb* memory_rw(struct exmem*);
 
+/*void wrapper for writeback for use in pthreading*/
+void* writebackvoid(void*);
+
 /*writeback(struct memwb*) takes a pointer to a memwb register struct and uses its data to write to
 the appropriate registers, completing the execution of the instruction. Whew!*/
-void writeback(struct memwb memwb_ptr);
+void writeback(struct memwb *memwb_ptr);
 
 /*make_r_type(int, char*, int*) takes the instruction specified by instr, and converts the remainder
 of the char* to an r_type struct to hold all the data an r_type can have. instrnum holds the enum
@@ -289,11 +307,11 @@ jump_names: the array holding all jump names in char* form
 void america();
 
 int main(int argc, char *argv[]) {
-    int i=0; char *a;
+    int i=0; char *a; char* filenm;
 
 	for (i = 1; i< argc; i++) {
 		printf("\narg%d=%s", i, argv[i]);
-		if (i = 1) {
+		if (i == 1) {
 			char *filenm = argv[i]; //Input file
 		}
 	}
@@ -383,42 +401,39 @@ void printstate(){
 
 int controllogic(){
     int pc=0;
-    char *cur_instruction; //analogous to if/id pipeline register
-    struct j_type *j_instr_ptr;
-    struct i_type *i_instr_ptr;
-    struct r_type *r_instr_ptr;
-    struct Instruction_Type* instr;
-    struct exmem* exmem_ptr;
-    struct memwb* memwb_ptr;
-    int mainct =0;
+    void* cur_instruction[2]; //analogous to if/id pipeline register
+    void* instr[2];
+    void* exmem_ptr[2];
+    void* memwb_ptr[2];
     printf("Control initiated:\n");
 
 	pthread_t *threads;
     while(1){
-		pthread_create(&threads[0], NULL, getinstructions, (void*) &pc);
-		pthread_create(&threads[1], NULL, decodeinstruction, (void*) cur_instruction);
-		pthread_create(&threads[2], NULL, execute, (void*) instr);
-		pthread_create(&threads[3], NULL, memory_rw, (void*) exmem_ptr);
-		pthread_create(&threads[4], NULL, writeback, (void*) memwb_ptr);
-
-        printf("pc:%d\n",pc);
-        printstate();
-        cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
-        printf("%s, %d\n", cur_instruction,(int)strlen(cur_instruction));
-        instr = decodeinstruction(cur_instruction);
-        if((*instr).instr==Break){
+        if((*((struct Instruction_Type*)instr[0])).instr==Break){
             break;
         }
-        exmem_ptr = execute(instr, &pc);
-        memwb_ptr = memory_rw(exmem_ptr);
-        writeback(memwb_ptr);
+        printf("pc:%d\n",pc);
+        printstate();
+        printf("%s\n", (char*)cur_instruction[0]);
+
+		pthread_create(&threads[0], NULL, fetchvoid, (void*) &pc);
+		pthread_create(&threads[1], NULL, decodevoid, cur_instruction[0]);
+		pthread_create(&threads[2], NULL, executevoid, instr[0]);
+		pthread_create(&threads[3], NULL, memory_rw_void, exmem_ptr[0]);
+		pthread_create(&threads[4], NULL, writebackvoid, memwb_ptr[0]);
 
 		// Wait for each thread to finish
-		pthread_join(threads[0], NULL);
-		pthread_join(threads[1], NULL);
-		pthread_join(threads[2], NULL);
-		pthread_join(threads[3], NULL);
+		pthread_join(threads[0], &cur_instruction[1]);
+		pthread_join(threads[1], &instr[1]);
+		pthread_join(threads[2], &exmem_ptr[1]);
+		pthread_join(threads[3], &memwb_ptr[1]);
 		pthread_join(threads[4], NULL);
+        
+        cur_instruction[0]=cur_instruction[1];
+        instr[0]=instr[1];
+        exmem_ptr[0]=exmem_ptr[1];
+        memwb_ptr[0]=memwb_ptr[1];
+        
     }
     return 0;
 }
@@ -498,8 +513,9 @@ struct exmem* execute(struct Instruction_Type* instr){
     struct i_type *i_instr_ptr;
     struct r_type *r_instr_ptr;
     struct exmem *exmem_ptr;
+    int *pc_ptr = (*instr).pc_ptr;
     int new_pc = *pc_ptr;
-    
+
     if((*instr).instr<Addi){
         r_instr_ptr=(struct r_type*)instr;
         exmem_ptr = execute_r(r_instr_ptr);
@@ -729,7 +745,7 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
     return memwb_ptr;
 }
 
-void* writeback(void* memwb_void){
+void* writebackvoid(void* memwb_void){
     writeback((struct memwb*) memwb_void);
     return NULL;
 }
