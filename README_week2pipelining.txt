@@ -23,4 +23,6 @@ Our program is relativly the same as last week.  We set ourselves up well for th
 
 - We added 5 structs to take in account for when a stage completes and needs to write to the next cycle but the next cycle is still running.  We called these the intermediary structs.
 
+- Jacob made a Makefile to help with compliling our program (there is an extra piece that needs to be added for the pthreading [-lpthread]).  The Makefile is also set up to run all of the tests so we don't have to iterate through each one.
+
 - (HAAAZZZZARRRRDS)
