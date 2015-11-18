@@ -27,7 +27,7 @@
 #include <pthread.h>
 #define NUM_THREADS	5
 
-static char *filenm = "gcd.asm";
+static char *filenm = "bubble.asm";
 
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -106,10 +106,6 @@ Instruction_Type, converting the function, any registers, and any immediate valu
 that are easier to operate on*/
 struct Instruction_Type* decodeinstruction(char* instr);
 
-/*execute(struct InstructionType*, int*) takes an instruction type and passes it to the appropriate
-execute function. It then updates the program counter.*/
-struct exmem* execute(struct Instruction_Type*, int*);
-
 /*execute_r(struct r_type*) takes a pointer to an r_type instruction and uses the data within to
 execute the instruction and put the correct data into an exmem register struct, which can then be
 passed to the memory function*/
@@ -134,7 +130,7 @@ struct memwb* memory_rw(struct exmem*);
 
 /*writeback(struct memwb*) takes a pointer to a memwb register struct and uses its data to write to
 the appropriate registers, completing the execution of the instruction. Whew!*/
-void writeback(struct memwb* memwb_ptr);
+void writeback(struct memwb memwb_ptr);
 
 /*make_r_type(int, char*, int*) takes the instruction specified by instr, and converts the remainder
 of the char* to an r_type struct to hold all the data an r_type can have. instrnum holds the enum
@@ -398,40 +394,12 @@ int controllogic(){
         cur_instruction = getinstruction(pc++); //instruction fetch is also tasked with incrementing pc
         printf("%s, %d\n", cur_instruction,(int)strlen(cur_instruction));
         instr = decodeinstruction(cur_instruction);
-<<<<<<< HEAD:c-in-mips.c
         if((*instr).instr==Break){
             break;
         }
         exmem_ptr = execute(instr, &pc);
         memwb_ptr = memory_rw(exmem_ptr);
         writeback(memwb_ptr);
-        /*if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=Jal)){
-=======
-        if((*instr).instr<Addi){
-            r_instr_ptr=(struct r_type*)instr;
-            exmem_ptr = execute_r(r_instr_ptr);
-        } else if((*instr).instr<J){
-            i_instr_ptr=(struct i_type*)instr;
-            exmem_ptr = execute_i(i_instr_ptr);
-        } else if((*instr).instr<Break){
-            j_instr_ptr=(struct j_type*)instr;
-            exmem_ptr = execute_j(j_instr_ptr,pc);
-        } else if((*instr).instr==Break){ // this is for break or empty string
-            break;
-        } else{
-            exit(1);
-        }
-        if(((*exmem_ptr).will_branch!=0) &&((*exmem_ptr).instrnum!=Jal)){
->>>>>>> origin/master:mips-in-c.c
-            pc=((*exmem_ptr).will_branch);
-        } else if((*exmem_ptr).instrnum==Jal){
-            pc=((*exmem_ptr).will_branch);
-            memwb_ptr = memory_rw(exmem_ptr);
-            writeback(*memwb_ptr);
-        } else{
-            memwb_ptr = memory_rw(exmem_ptr);
-            writeback(*memwb_ptr);
-        }
 
 		// Wait for each thread to finish
 		pthread_join(threads[0], NULL);
@@ -443,12 +411,24 @@ int controllogic(){
     return 0;
 }
 
-char* getinstruction(int pc){
+void* fetchvoid(void* void_pc){
+    return (void*)getinstruction((int*)void_pc);
+}
+
+char* getinstruction(int *pc_ptr){
+    int pc = *pc_ptr;
+    char* instr;
     if(instructions[pc]!=NULL){
-        return instructions[pc];
+        instr = instructions[pc];
     } else{
-        return "";
+        instr = "";
     }
+    pc++; *pc_ptr = pc;
+    return instr;
+}
+
+void* decodevoid(void* void_instr){
+    return (void*)decodeinstruction((char*)void_instr);
 }
 
 struct Instruction_Type* decodeinstruction(char* instr){
@@ -475,7 +455,6 @@ struct Instruction_Type* decodeinstruction(char* instr){
             }
         }
     }
-    printf("inum:%d\n",instrnum);
     if(instrnum<Addi){
         r_instr_ptr=make_r_type(instrnum, instr, ptr);
         printf("inum:%d,dest:%d,s1:%d,s2:%d,shamt:%d\n",(*r_instr_ptr).instr,(*r_instr_ptr).dest_register,(*r_instr_ptr).s_register1,(*r_instr_ptr).s_register2,(*r_instr_ptr).shamt);
@@ -498,8 +477,11 @@ struct Instruction_Type* decodeinstruction(char* instr){
     return instr_ptr;
 }
 
-<<<<<<< HEAD:c-in-mips.c
-struct exmem* execute(struct Instruction_Type* instr, int* pc_ptr){
+void* executevoid(void* instr_type_void){
+    return (void*)execute((struct Instruction_Type*)instr_type_void);
+}
+
+struct exmem* execute(struct Instruction_Type* instr){
     struct j_type *j_instr_ptr;
     struct i_type *i_instr_ptr;
     struct r_type *r_instr_ptr;
@@ -527,15 +509,11 @@ struct exmem* execute(struct Instruction_Type* instr, int* pc_ptr){
     return exmem_ptr;
 }
 
-=======
->>>>>>> origin/master:mips-in-c.c
 struct exmem* execute_r(struct r_type *r_type_ptr){
     struct r_type r_instr = *r_type_ptr;
-    struct exmem exmem_reg;
-    struct exmem* exmem_ptr = &exmem_reg;
-    memset(exmem_ptr, 0, sizeof(exmem_reg));
+    struct exmem* exmem_ptr = (struct exmem*)calloc(1,sizeof(struct exmem));
+    struct exmem exmem_reg = *exmem_ptr;
 
-<<<<<<< HEAD:c-in-mips.c
     (*exmem_ptr).instrnum=r_instr.instr; (*exmem_ptr).will_branch=0;
     if(r_instr.instr==Jr) { // get address from RF
         (*exmem_ptr).will_branch = r_instr.dest_register;
@@ -560,37 +538,11 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
     free(r_type_ptr);
     
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",(*exmem_ptr).instrnum,(*exmem_ptr).alu_result,(*exmem_ptr).dest_register,(*exmem_ptr).will_branch);
-=======
-    exmem_reg.instrnum=r_instr.instr; exmem_reg.will_branch=0;
-    if(r_instr.instr<=Srav){ // all normal 3 register r types
-        exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.s_register2, r_instr.instr);
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<=Sra){ // shift operations
-        exmem_reg.alu_result = alu(r_instr.s_register1,r_instr.shamt, r_instr.instr);
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr<=Divu){ // mult and similar
-        exmem_reg.alu_result = 0;
-        alu(r_instr.dest_register,r_instr.s_register1, r_instr.instr);
-    } else if(r_instr.instr==MfcZ){
-        exmem_reg.alu_result = controlRegisterZ[RegisterFile[r_instr.s_register1]];
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else if(r_instr.instr==MtcZ){
-        exmem_reg.alu_result = alu(r_instr.dest_register,0,Addi);
-        exmem_reg.dest_register = r_instr.s_register1;
-    } else if(r_instr.instr<=Mflo){ // mfhi and mflo
-        exmem_reg.dest_register = r_instr.dest_register;
-    } else{ // jr
-        exmem_reg.will_branch=alu(r_instr.dest_register,0,Addi);
-    }
-
-    printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
->>>>>>> origin/master:mips-in-c.c
     return exmem_ptr;
 }
 
 struct exmem* execute_i(struct i_type *i_type_ptr){
     struct i_type i_instr = *i_type_ptr;
-<<<<<<< HEAD:c-in-mips.c
     struct exmem *exmem_ptr = (struct exmem*)calloc(1,sizeof(struct exmem));
     struct exmem exmem_reg = *exmem_ptr;
 
@@ -605,76 +557,37 @@ struct exmem* execute_i(struct i_type *i_type_ptr){
         (*exmem_ptr).dest_register = i_instr.dest_register;
         (*exmem_ptr).alu_result = alu(i_instr.s_register, i_instr.immediate, Addi);
     } else if(i_instr.instr==Bne){
-=======
-    struct exmem exmem_reg;
-    struct exmem* exmem_ptr = &exmem_reg;
-    memset(exmem_ptr, 0, sizeof(exmem_reg));
-
-    exmem_reg.instrnum=i_instr.instr; exmem_reg.will_branch=0;
-    if(i_instr.instr==Lui){ //lui
-        exmem_reg.alu_result=i_instr.immediate << 16;
-        exmem_reg.dest_register=i_instr.dest_register;
-    } else if(i_instr.instr>=Sw){ // all standard memory stores
-        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to store into
-        exmem_reg.dest_register=alu(i_instr.dest_register,0,Addi); // the value to put there
-    } else if(i_instr.instr>=Lw){ // all standard memory loads
-        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, Addi); // the memory location to load from
-        exmem_reg.dest_register=i_instr.dest_register; // the register to load to
-    } else if(i_instr.instr==Bne){ // bne - if one is less than the other set branch location
->>>>>>> origin/master:mips-in-c.c
         if((alu(i_instr.s_register, i_instr.dest_register,Slt)==1)||(alu(i_instr.dest_register, i_instr.s_register,Slt)==1)){
             (*exmem_ptr).will_branch=i_instr.immediate;
         }
-    } else if(i_instr.instr==Beq){ // beq
+    } else if(i_instr.instr==Beq){
         if((alu(i_instr.s_register, i_instr.dest_register,Slt)==0)&&(alu(i_instr.dest_register, i_instr.s_register,Slt)==0)){
             (*exmem_ptr).will_branch=i_instr.immediate;
         }
-<<<<<<< HEAD:c-in-mips.c
     } else{
         (*exmem_ptr).alu_result = alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
         (*exmem_ptr).dest_register = i_instr.dest_register;
     }
     free(i_type_ptr);
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",(*exmem_ptr).instrnum,(*exmem_ptr).alu_result,(*exmem_ptr).dest_register,(*exmem_ptr).will_branch);
-=======
-    } else{ //just some alu operations
-        exmem_reg.alu_result=alu(i_instr.s_register, i_instr.immediate, i_instr.instr);
-        exmem_reg.dest_register=i_instr.dest_register;
-    }
-
-    printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
->>>>>>> origin/master:mips-in-c.c
     return exmem_ptr;
 }
 
 struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
     struct j_type j_instr = *j_type_ptr;
-<<<<<<< HEAD:c-in-mips.c
     struct exmem* exmem_ptr = (struct exmem*)calloc(1,sizeof(struct exmem));
     struct exmem exmem_reg = *exmem_ptr;
     
     (*exmem_ptr).instrnum=j_instr.instr;
-=======
-    struct exmem exmem_reg;
-    struct exmem* exmem_ptr = &exmem_reg;
-    memset(exmem_ptr,0,sizeof(exmem_reg));
-
-    exmem_reg.instrnum=j_instr.instr;
->>>>>>> origin/master:mips-in-c.c
     if(j_instr.instr==J){ // j
         (*exmem_ptr).will_branch=j_instr.jump_to;
     } else{ // jal
         (*exmem_ptr).will_branch=j_instr.jump_to;
         (*exmem_ptr).alu_result=pc; (*exmem_ptr).dest_register=31;
     }
-<<<<<<< HEAD:c-in-mips.c
     free(j_type_ptr);
     
     printf("instr:%d,alu:%d,dest:%d,branch:%d\n",(*exmem_ptr).instrnum,(*exmem_ptr).alu_result,(*exmem_ptr).dest_register,(*exmem_ptr).will_branch);
-=======
-
-    printf("instr:%d,alu:%d,dest:%d,branch:%d\n",exmem_reg.instrnum,exmem_reg.alu_result,exmem_reg.dest_register,exmem_reg.will_branch);
->>>>>>> origin/master:mips-in-c.c
     return exmem_ptr;
 }
 
@@ -765,11 +678,15 @@ int alu(int operandA, int operandB, int Operation) {
 	return result;
 }
 
+void* memory_rw_void(void* exmem_void){
+    return (void*)memory_rw((struct exmem*) exmem_void);
+}
+
+
 struct memwb *memory_rw(struct exmem* exmem_ptr){
     struct exmem exmem_reg = *exmem_ptr;
-    struct memwb memwb_reg;
-    struct memwb *memwb_ptr = &memwb_reg;
-    memset(memwb_ptr,0,sizeof(memwb_reg));
+    struct memwb *memwb_ptr = (struct memwb*)calloc(1, sizeof(struct memwb));
+    struct memwb memwb_reg = *memwb_ptr;
 
     (*memwb_ptr).instrnum=exmem_reg.instrnum;
     (*memwb_ptr).dest_register=exmem_reg.dest_register;
@@ -795,13 +712,18 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
     } else{
         (*memwb_ptr).value=exmem_reg.alu_result;
     }
-    
+    free(exmem_ptr);
     printf("instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
     return memwb_ptr;
 }
 
-void writeback(struct memwb memwb_ptr){
-    struct memwb memwb_reg = memwb_ptr;
+void* writeback(void* memwb_void){
+    writeback((struct memwb*) memwb_void);
+    return NULL;
+}
+
+void writeback(struct memwb* memwb_ptr){
+    struct memwb memwb_reg = *memwb_ptr;
     
     printf("instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
     if(memwb_reg.instrnum==Mfhi){
@@ -813,16 +735,17 @@ void writeback(struct memwb memwb_ptr){
     } else{
         register_write(memwb_reg.dest_register,memwb_reg.value);
     }
+    
+    free(memwb_ptr);
 }
 
 
 
 // decode helper functions
 struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
-    struct r_type r_instr; 
-    struct r_type *r_type_ptr=&r_instr;
+    struct r_type *r_type_ptr=(struct r_type*)calloc(1, sizeof(struct r_type*));
+    struct r_type r_instr = *r_type_ptr;
 
-<<<<<<< HEAD:c-in-mips.c
     (*r_type_ptr).instr=instrnum; (*r_type_ptr).pc_ptr = NULL;
     if(instrnum==Jr) { // get address from RF
         (*r_type_ptr).dest_register=RegisterFile[nextregister(instr, ptr)];
@@ -847,28 +770,14 @@ struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
         (*r_type_ptr).s_register2=RegisterFile[nextregister(instr, ptr)];
     }
     printf("instr:%d,dest:%d,s1:%d,s2:%d\n",(*r_type_ptr).instr,(*r_type_ptr).dest_register,(*r_type_ptr).s_register1,(*r_type_ptr).s_register2);
-=======
-    r_instr.instr=instrnum;
-    r_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum<Mfhi){ // some only need 1 or 2 registers
-        r_instr.s_register1=nextregister(instr, ptr);
-        if(instrnum<Sll){
-            r_instr.s_register2=nextregister(instr, ptr);
-        } else if(instrnum<Mult){
-            r_instr.shamt=(char)nextint(instr, ptr);
-        }
-    }
-
->>>>>>> origin/master:mips-in-c.c
     return r_type_ptr;
 }
 
 struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
-    struct i_type i_instr;
-    struct i_type *i_type_ptr=&i_instr;
+    struct i_type *i_type_ptr=(struct i_type*)calloc(1, sizeof(struct i_type*));
+    struct i_type i_instr = *i_type_ptr;
     struct indexed_register *indreg_ptr;
 
-<<<<<<< HEAD:c-in-mips.c
     (*i_type_ptr).instr=instrnum; (*i_type_ptr).pc_ptr = NULL;
     
     if(instrnum==Lui){ // lui needs dest and imm
@@ -890,27 +799,14 @@ struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
     } else{
         (*i_type_ptr).dest_register=nextregister(instr, ptr);
         (*i_type_ptr).s_register=RegisterFile[nextregister(instr, ptr)]; (*i_type_ptr).immediate=nextint(instr, ptr);
-=======
-    i_instr.instr=instrnum;
-    i_instr.dest_register=nextregister(instr, ptr);
-    if(instrnum==Lui){
-        i_instr.immediate=nextint(instr, ptr);
-    } else if(instrnum>=Lw){
-        indreg_ptr = nextindexedregister(instr, ptr);
-        i_instr.s_register=(*indreg_ptr).mem_register; i_instr.immediate=(*indreg_ptr).index;
-    } else if(instrnum>=Beq){
-        i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextjumploc(instr,ptr);
-    } else{
-        i_instr.s_register=nextregister(instr, ptr); i_instr.immediate=nextint(instr, ptr);
->>>>>>> origin/master:mips-in-c.c
     }
     printf("instr:%d,dest:%d,s:%d,imm:%d\n",(*i_type_ptr).instr,(*i_type_ptr).dest_register,(*i_type_ptr).s_register,(*i_type_ptr).immediate);
     return i_type_ptr;
 }
 
 struct j_type* make_j_type(int instrnum, char* instr, int* ptr){
-    struct j_type j_instr;
-    struct j_type *j_type_ptr=&j_instr;
+    struct j_type *j_type_ptr=(struct j_type*)calloc(1, sizeof(struct j_type*));
+    struct j_type j_instr = *j_type_ptr;
 
     (*j_type_ptr).instr=instrnum; (*j_type_ptr).pc_ptr = NULL;
     (*j_type_ptr).jump_to=nextjumploc(instr, ptr);
@@ -980,14 +876,8 @@ int nextjumploc(char* instr, int* ptr){
 struct indexed_register* nextindexedregister(char* instr, int* ptr){
     char reg[8];
     int i=*ptr; int start; char newit;
-<<<<<<< HEAD:c-in-mips.c
     struct indexed_register *indreg_ptr=(struct indexed_register*)calloc(1,sizeof(struct indexed_register));
     struct indexed_register indreg = *indreg_ptr;
-=======
-    struct indexed_register indreg;
-    struct indexed_register *indreg_ptr=&indreg;
-    memset(reg,0,sizeof(reg));
->>>>>>> origin/master:mips-in-c.c
     
     while(isspace(*(instr+i))){i++;}
     start=i;
