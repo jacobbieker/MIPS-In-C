@@ -417,12 +417,16 @@ int controllogic(){
     return 0;
 }
 
-char* getinstruction(int pc){
+char* getinstruction(int *pc_ptr){
+    int pc = *pc_ptr;
+    char* instr;
     if(instructions[pc]!=NULL){
-        return instructions[pc];
+        instr = instructions[pc];
     } else{
-        return "";
+        instr = "";
     }
+    pc++; *pc_ptr = pc;
+    return instr;
 }
 
 struct Instruction_Type* decodeinstruction(char* instr){
