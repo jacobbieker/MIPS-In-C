@@ -11,7 +11,7 @@
   all: $(TARGET)
 
   $(TARGET): $(TARGET).c
-  	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+		$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
 
  test1:
 		$(TARGET) test/gcd.asm > output/gcd.asm
@@ -28,4 +28,4 @@
  test: test1 test2 test3 test4
 
   clean:
-  	-rm -f *.o *.out
+		-rm -f *.o *.out
