@@ -312,7 +312,7 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i< argc; i++) {
 		printf("\narg%d=%s", i, argv[i]);
 		if (i == 1) {
-			*filenm = argv[i]; //Input file
+			filenm = argv[i]; //Input file
 		}
 	}
 
