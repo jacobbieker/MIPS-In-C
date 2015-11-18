@@ -307,17 +307,8 @@ jump_names: the array holding all jump names in char* form
 void america();
 
 int main(int argc, char *argv[]) {
-    int i=0; char *a; char* filenm;
-
-	printf("%s", argv[1]);
-	for (i = 0; i< argc; i++) {
-		printf("\narg%d=%s", i, argv[i]);
-		if (i == 1) {
-			filenm = argv[i]; //Input file
-		}
-	}
-
-    readmips(filenm);     
+    int i=0; char *a;
+	readmips(argv[1]);    
     /*
     while(instructions[i]!=NULL){
         printf("%s\n",instructions[i]);
