@@ -13,5 +13,19 @@
   $(TARGET): $(TARGET).c
   	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
 
+  test1:
+		$(TARGET) < test/gcd.asm
+
+	test2:
+		$(TARGET) < test/bubble.asm
+
+	test3:
+		$(TARGET) < function.asm
+
+	test4:
+		$(TARGET) < fibonacci.asm
+
+	test: test1 test2 test3 test4
+	
   clean:
-  	$(RM) $(TARGET)
+  	-rm -f *.o *.out
