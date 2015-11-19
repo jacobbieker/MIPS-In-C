@@ -1,5 +1,5 @@
 /* 
-*  Design of the Pipelining Implimentation
+*  Design of the Pipelining Implementation
 *  Project by Matthew Jagielski, Jacob Bieker, and Theodore LaGrow
 *  Date Submitted: 11/18/2015
 *  Class: CIS 314
@@ -7,11 +7,11 @@
 
 General notes:
 
-Our program is relativly the same as last week.  We set ourselves up well for this week creating structs and functions to impliment the five processing stages.  We decided to conduct the pipelining with the pthreading module.  Here is how we modified the code from last week:
+Our program is relatively the same as last week.  We set ourselves up well for this week creating structs and functions to implement the five processing stages.  We decided to conduct the pipelining with the pthreading module.  Here is how we modified the code from last week:
 
 ---------------------------------------------------------------------------
 
-- We began by changing our excute stage from having three fuctions that accounted for all three types of MIPS intructions to having one centeral execute function that will help with the control flow of the stage.  This way we would be able to deal with the pthreading with only function with execute.
+- We began by changing our execute stage from having three functions that accounted for all three types of MIPS instructions to having one central execute function that will help with the control flow of the stage.  This way we would be able to deal with the pthreading with only function with execute.
 
 - There was an error that arose when the execute function was combined that outputted zeros for all of our values.  Matthew found the fix.  What happened was that space was being malloc'd when it was also trying to be written on and the output was zero.  Our execute function is now working.
 
@@ -25,4 +25,6 @@ Our program is relativly the same as last week.  We set ourselves up well for th
 
 - Jacob made a Makefile to help with compliling our program (there is an extra piece that needs to be added for the pthreading [-lpthread]).  The Makefile is also set up to run all of the tests so we don't have to iterate through each one.
 
-- (HAAAZZZZARRRRDS)
+- To account for the three hazards that arise with pipelining, we decided to implement a stall method instead of a forwarding method.  We used locks control the flow in control logic. 
+
+- We had issues with looping and registers not being allocated to correct memory.  Our code was running continuously until Matthew found the incorrect pointer issue.  (Thank you Matthew).
