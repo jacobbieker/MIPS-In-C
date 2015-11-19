@@ -310,7 +310,6 @@ void america();
 
 int main(int argc, char *argv[]) {
     int i=0; char *a;
-    
     readmips(argv[1]);     
     
     while(instructions[i]!=NULL){
