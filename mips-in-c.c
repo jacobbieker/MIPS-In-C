@@ -40,6 +40,8 @@ static char RegisterFileNames[32][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a
 static char RegisterNumberNames[32][4] = {"$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28","$29","$30","$31"};
 static char RegistersInUse[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegAccess[2] = {0,0};
+static int LOCK = 0;
+
 
 static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
@@ -310,6 +312,7 @@ void america();
 
 int main(int argc, char *argv[]) {
     int i=0; char *a;
+    
     readmips(argv[1]);     
     
     while(instructions[i]!=NULL){
@@ -406,30 +409,38 @@ int controllogic(){
     struct exmem* exmem_temp;
     int lastpc=0;
 	pthread_t threads[5];
+    int willbreak=0; int reachedend;
+    int numloops=0;
+    int i;
+    int lockedreg=0;
     printf("Control initiated:\n");
 
     while(1){
-        if(pc>=18){
-            exit(0);
-        }
         if((instr[0]!=NULL)&&((*(struct Instruction_Type*)instr[0])).instr==Break){
-            break;
+            printf("bmbumbbumbumb\n");
+            willbreak=2; reachedend=1;
+            for(i=0;i<2;i++){
+                cur_instruction[i]=NULL; instr[i]=NULL;
+            }
         }
         printf("pc:%d\n",pc);
         printstate();
 
-		pthread_create(&threads[0], NULL, fetchvoid, (void*) &pc);
-		pthread_create(&threads[1], NULL, decodevoid, cur_instruction[0]);
+                
+		pthread_create(&threads[4], NULL, writebackvoid, memwb_ptr[0]);
+        pthread_create(&threads[0], NULL, fetchvoid, (void*) &pc);
 		pthread_create(&threads[2], NULL, executevoid, instr[0]);
 		pthread_create(&threads[3], NULL, memory_rw_void, exmem_ptr[0]);
-		pthread_create(&threads[4], NULL, writebackvoid, memwb_ptr[0]);
+
+		pthread_join(threads[4], NULL);
+
+		pthread_create(&threads[1], NULL, decodevoid, cur_instruction[0]);
 
 		// Wait for each thread to finish
 		pthread_join(threads[0], &cur_instruction[1]);
 		pthread_join(threads[1], &instr[1]);
 		pthread_join(threads[2], &exmem_ptr[1]);
 		pthread_join(threads[3], &memwb_ptr[1]);
-		pthread_join(threads[4], NULL);
         
 
         if(instr[1]!=NULL){
@@ -437,20 +448,24 @@ int controllogic(){
             if((*instr_temp).instr<Addi){
                 if(RegistersInUse[RegAccess[1]]!=0 || RegistersInUse[RegAccess[0]]!=0){
                     instr[0]=NULL; instr[1]=NULL; cur_instruction[1]=cur_instruction[0]; pc = lastpc;
-                //    }
                 }
                 if((*(struct r_type*)instr_temp).dest_register!=0){
-                    RegistersInUse[(*(struct r_type*)instr_temp).dest_register]=1;
+                    lockedreg=(*(struct r_type*)instr_temp).dest_register;
+                    RegistersInUse[lockedreg]=1;
                 } 
-            } else if((*instr_temp).instr<J){
+            } else if((*instr_temp).instr<J){ 
                 if(RegistersInUse[RegAccess[1]]!=0 || RegistersInUse[RegAccess[0]]!=0){
                     instr[0]=NULL; instr[1]=NULL; cur_instruction[1]=cur_instruction[0]; pc = lastpc;
                 }
-                if((*(struct i_type*)instr_temp).dest_register!=0){
-                    RegistersInUse[(*(struct i_type*)instr_temp).dest_register]=1;
-                } 
+                if(LOCK!=0 && (*(struct i_type*)instr_temp).dest_register!=0){
+                    lockedreg=(*(struct i_type*)instr_temp).dest_register;
+                    RegistersInUse[lockedreg]=1;
+                }
+            } else if((*instr_temp).instr==Jal){
+                RegistersInUse[31]=1;
+                lockedreg=31;
             }
-        }
+        }   
         cur_instruction[0]=cur_instruction[1];
         instr[0]=instr[1];
         exmem_ptr[0]=exmem_ptr[1];
@@ -462,12 +477,29 @@ int controllogic(){
         if(exmem_ptr[0]!=NULL){
             exmem_temp = exmem_ptr[0];
             if((*exmem_temp).will_branch!=0){
-                pc = (*exmem_temp).will_branch;
+                if(lockedreg!=0){
+                    RegistersInUse[lockedreg]=0;
+                }   
                 cur_instruction[0]=NULL; instr[0]=NULL;
+                pc=(*exmem_temp).will_branch;
             }
         }
         lastpc = pc;
+        LOCK=0; lockedreg=0;
+        numloops++;
+        if(numloops>1300){
+            //break;
+        }
+        if(willbreak>0){
+            willbreak--;
+            for(i=0;i<2;i++){
+                cur_instruction[i]=NULL; instr[i]=NULL;
+            }
+        } else if((willbreak==0)&&(reachedend==1)){
+            break;
+        }
     }
+    printstate();
     return 0;
 }
 
@@ -559,6 +591,7 @@ struct exmem* execute(struct Instruction_Type* instr){
 
     printf("exe\n");
     if(instr==NULL){
+        printf("exenull\n");
         return NULL;
     }
     pc_ptr=(*instr).pc_ptr;
@@ -573,6 +606,7 @@ struct exmem* execute(struct Instruction_Type* instr){
         j_instr_ptr=(struct j_type*)instr;
         exmem_ptr = execute_j(j_instr_ptr,new_pc);
     } else{
+        printf("asfwefuahwefdad\n");
         exit(1);
     }
     
@@ -765,10 +799,11 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
 
     printf("mem\n");
     if(exmem_ptr==NULL){
+        printf("mmenyll\n");
         return NULL;
     }
     exmem_reg=*exmem_ptr;
-    
+    printf("exmem:instr:%d,dest:%d,alu:%d\n",exmem_reg.instrnum,exmem_reg.dest_register,exmem_reg.alu_result);
     (*memwb_ptr).instrnum=exmem_reg.instrnum;
     (*memwb_ptr).dest_register=exmem_reg.dest_register;
     if(exmem_reg.instrnum==Lw){
@@ -864,12 +899,9 @@ struct r_type* make_r_type(int instrnum, char* instr, int* ptr){
         (*r_type_ptr).s_register1=RegisterFile[reg1];
         (*r_type_ptr).s_register2=RegisterFile[reg2];
     }
-    if(reg1!=0){
-        RegAccess[0]=reg1;
-        if(reg2!=0){
-            RegAccess[1]=reg2;
-        }
-    }
+    LOCK=1;
+    RegAccess[0]=reg1;
+    RegAccess[1]=reg2;
     printf("instr:%d,dest:%d,s1:%d,s2:%d,shamt:%d\n",(*r_type_ptr).instr,(*r_type_ptr).dest_register,(*r_type_ptr).s_register1,(*r_type_ptr).s_register2,(*r_type_ptr).shamt);
     return r_type_ptr;
 }
@@ -883,6 +915,7 @@ struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
     if(instrnum==Lui){ // lui needs dest and imm
         (*i_type_ptr).dest_register=nextregister(instr, ptr);
         (*i_type_ptr).immediate=nextint(instr, ptr);
+        LOCK=1;
     } else if(instrnum>=Sw){ // stores need value of dest, s, imm
         reg1 = nextregister(instr, ptr);
         (*i_type_ptr).dest_register=RegisterFile[reg1];
@@ -896,6 +929,7 @@ struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
         reg1 = (*indreg_ptr).mem_register;
         (*i_type_ptr).s_register=RegisterFile[reg1]; (*i_type_ptr).immediate=(*indreg_ptr).index;
         free(indreg_ptr);
+        LOCK=1;
     } else if(instrnum>=Beq){
         reg1 = nextregister(instr, ptr); reg2 = nextregister(instr, ptr);
         (*i_type_ptr).dest_register=RegisterFile[reg1];
@@ -904,13 +938,10 @@ struct i_type* make_i_type(int instrnum, char* instr, int* ptr){
         (*i_type_ptr).dest_register=nextregister(instr, ptr);
         reg1 = nextregister(instr, ptr);
         (*i_type_ptr).s_register=RegisterFile[reg1]; (*i_type_ptr).immediate=nextint(instr, ptr);
+        LOCK=1;
     }
-    if(reg1!=0){
-        RegAccess[0]=reg1;
-        if(reg2!=0){
-            RegAccess[1]=reg2;
-        }
-    }
+    RegAccess[0]=reg1;
+    RegAccess[1]=reg2;
     printf("instr:%d,dest:%d,s:%d,imm:%d\n",(*i_type_ptr).instr,(*i_type_ptr).dest_register,(*i_type_ptr).s_register,(*i_type_ptr).immediate);
     return i_type_ptr;
 }
