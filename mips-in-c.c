@@ -33,7 +33,6 @@
 #include <math.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS	5
 
 static int RegisterFile[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static char RegisterFileNames[32][6] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
@@ -204,9 +203,6 @@ struct indexed_register* nextindexedregister(char* instr, int* ptr);
 // Check for overflow function
 /*safe_add(int,int) adds two integers, checking for overflow*/
 int safe_add(int a, int b);
-
-/*safe_sub(int,int) subtracts the second integer from the first, checking for overflow*/
-int safe_sub(int a, int b);
 
 // Start of Arithmetic functions
 //add adds two values
