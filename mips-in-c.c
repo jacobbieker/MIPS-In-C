@@ -47,6 +47,12 @@ static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
 static int controlRegisterZ[1024]; // Control RegisterZ
 
+struct cache {
+	int is_valid;
+	int address_tag;
+	int index;
+	int cacheLine[16];
+};
 static char* jump_names[128]; // jump location names and addresses
 static int jump_locations[128];
 
