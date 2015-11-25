@@ -46,14 +46,14 @@ static int data_memory[1024]; // int values
 static char* instructions[1024]; // instructions
 static int controlRegisterZ[1024]; // Control RegisterZ
 
+#define CACHE_LENGTH 16
+#define CACHE_LINE_LENGTH 16
 struct cache_line { // cache for the program
 	int is_valid;
 	int address_tag;
-	int index;
-	int cacheLine[16];
+	int cacheLine[CACHE_LINE_LENGTH];
 };
-
-static struct cache_line cache[16];
+static struct cache_line cache[CACHE_LENGTH];
 
 static char* jump_names[128]; // jump location names and addresses
 static int jump_locations[128];
@@ -418,6 +418,7 @@ int controllogic(){
     int numloops=0;
     int i;
     int lockedreg=0;
+    memset(cache,0,sizeof(cache));
     printf("Control initiated:\n");
 
     while(1){
@@ -1163,35 +1164,94 @@ int srav(int register2, int register3) {
 
 // Memory Stage helpers
 
+int check_cache(int location){
+    int slot = (location/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int tag = location/(4*CACHE_LINE_LENGTH*CACHE_LENGTH);
+    struct cache_line curcache = cache[slot];
+    int is_hit = 0;
+    int i;
+    if(curcache.is_valid==1 && curcache.address_tag==tag){
+        is_hit = 1;
+    }
+    if(is_hit==0){
+        if(curcache.is_valid==1){
+            for(i=0;i<CACHE_LINE_LENGTH;i++){
+                data_memory[(location/(4*CACHE_LINE_LENGTH))*CACHE_LINE_LENGTH+i]=curcache.cacheLine[i]; // rewrite memory
+            }
+        }
+        cache[slot].is_valid = 1;
+        cache[slot].address_tag = tag;
+        for(i=0;i<CACHE_LINE_LENGTH;i++){
+            curcache.cacheLine[i]=data_memory[(location/(4*CACHE_LINE_LENGTH))*CACHE_LINE_LENGTH+i]; // rewrite memory
+        }
+        return 0;
+    } else{
+        return 1;
+    }
+}
+
 // Read in Load Word Memory (Memory Stage)
 int lw_read(int registerAndIndex) {
-	return data_memory[registerAndIndex/4];
+    
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+
+    check_cache(registerAndIndex);
+    return cache[slot].cacheLine[offset];
 }
 
 // Read in Load Halfword Memory (Memory Stage)
 short lh_read(int registerAndIndex) {
-	int a = data_memory[registerAndIndex/4];
-	short b = (short)a; //TODO: make this get the right half
 	// Need to figure out which half to get (distinguish from each other)
-	return b;
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+    int a; short b;
+
+    check_cache(registerAndIndex);
+	
+	a = cache[slot].cacheLine[offset];
+	b = (short)a; //TODO: make this get the right half
+    return b;
 }
 
 unsigned short lhu_read(int registerAndIndex){
-    int a = data_memory[registerAndIndex/4];
-    unsigned short b = (unsigned short)a; //TODO: make this get the right half
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+    int a; unsigned short b;
+
+    check_cache(registerAndIndex);
+
+    a = cache[slot].cacheLine[offset];
+    b = (unsigned short)b;
+
+    return b;
 }
 
 
 // Read in Byte Memory (Memory Stage)
 char lb_read(int registerAndIndex) {
-	int a = data_memory[registerAndIndex/4];
-	char b = (char)a; //TODO: make this get the right byte
-	return b;
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+    int a; char b;
+
+    check_cache(registerAndIndex);
+
+    a = cache[slot].cacheLine[offset];
+    b = (char)b;
+
+    return b;
 }
 
 unsigned char lbu_read(int registerAndIndex){
-    int a = data_memory[registerAndIndex/4];
-    unsigned char b = (unsigned char)a; //TODO: make this get the right byte
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+    int a; unsigned char b;
+
+    check_cache(registerAndIndex);
+
+    a = cache[slot].cacheLine[offset];
+    b = (unsigned char)b;
+
     return b;
 }
 
@@ -1253,29 +1313,38 @@ unsigned char lbu(int register1, int value) {
 
 // Store Word (WriteBack Stage)
 void sw(int register1, int registerAndIndex) {
-	data_memory[registerAndIndex/4] = register1;
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+	check_cache(registerAndIndex);
+    
+    cache[slot].cacheLine[offset]=register1;
 }
 
 
 // Store Halfword (WriteBack Stage)
 void sh(int register1, int registerAndIndex) {
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
 	if (registerAndIndex % 4 == 2 || registerAndIndex % 4 == 3) {
-		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] >> 16) << 16) + register1;
+		cache[slot].cacheLine[offset] = ((cache[slot].cacheLine[offset] >> 16) << 16) + register1;
 	} else if (registerAndIndex % 4 == 0 || registerAndIndex % 4 == 1) {
-		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 16) >> 16) + (register1 << 16);
+		cache[slot].cacheLine[offset] = ((cache[slot].cacheLine[offset] << 16) >> 16) + (register1 << 16);
 	}
 }
 
 // Store Byte (WriteBack Stage)
 void sb(int register1, int registerAndIndex) {
-	if (registerAndIndex % 4 == 0) {
-		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 8) >> 16) + (register1 << 24);
+	int slot = (registerAndIndex/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
+    int offset = (registerAndIndex/4)%CACHE_LINE_LENGTH;
+	
+    if (registerAndIndex % 4 == 0) {
+		cache[slot].cacheLine[offset] = ((cache[slot].cacheLine[offset] << 8) >> 16) + (register1 << 24);
 	} else if (registerAndIndex % 4 == 1) {
-		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 16) >> 16) + ((data_memory[registerAndIndex/4] >> 24) << 24) + (register1 << 16);
+		cache[slot].cacheLine[offset] = ((cache[slot].cacheLine[offset] << 16) >> 16) + ((cache[slot].cacheLine[offset] >> 24) << 24) + (register1 << 16);
 	} else if (registerAndIndex % 4 == 2) {
-		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] << 24) >> 24) + ((data_memory[registerAndIndex/4] >> 16) << 16) + (register1 << 8);
+		cache[slot].cacheLine[offset] = ((cache[slot].cacheLine[offset] << 24) >> 24) + ((cache[slot].cacheLine[offset] >> 16) << 16) + (register1 << 8);
 	} else if (registerAndIndex % 4 == 3) {
-		data_memory[registerAndIndex/4] = ((data_memory[registerAndIndex/4] >> 8) << 8) + register1;
+		cache[slot].cacheLine[offset] = ((cache[slot].cacheLine[offset] >> 8) << 8) + register1;
 	}
 }
 
