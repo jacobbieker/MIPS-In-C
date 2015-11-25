@@ -1,10 +1,10 @@
-/* CIS 314 Big Project, Week 3 Fall 2015
+/* CIS 314 Big Project, Week 2 Fall 2015
  *
  *  Authors:
  *      Matthew Jagielski, Jacob Bieker, and Theodore LaGrow
  *
  *  Date:
- *      11/25/2015
+ *      11/19/2015
  *      
  *  Sources:
  *      CIS 314 on canvas.uoregon.edu
@@ -16,10 +16,10 @@
  *      Single cycle processor simulation in C: implement (a) a register file, (b) an ALU
  *      (c) control logic, and (d) main memory.
  *
- *      Week 2: 
+ *      Week 2: (WE ARE HERE!)
  *      Convert the single cycle processor into a pipelined 5-stage processor.
  *
- *      Week 3: (WE ARE HERE!)
+ *      Week 3:
  *      Build a direct-mapped cache structure between the main memory and the 5-stage
  *      processor.
  *  
@@ -269,6 +269,10 @@ int srav(int register2, int register3);
 
 // Memory Stage helpers headers
 
+void check_cache(int);
+
+void write_cache_line(int);
+
 int lw_read(int registerAndIndex);
 
 short lh_read(int registerAndIndex);
@@ -392,7 +396,7 @@ void readmips(char* filename){
 }
 
 void printstate(){
-    int i;    
+    int i; int j;   
     for(i=0;i<32;i++){
         printf("%s:%d,",RegisterFileNames[i],RegisterFile[i]);
     } printf("\n");
@@ -402,6 +406,16 @@ void printstate(){
     for(i=0;i<70;i++){
         printf("%d,",data_memory[i]);
     } printf("\n");
+    for(i=0;i<CACHE_LENGTH;i++){
+        if(cache[i].is_valid==1){
+            printf("cache %d of 16: ", i);
+            for(j=0;j<CACHE_LINE_LENGTH;j++){
+                printf("%d,",cache[i].cacheLine[j]);
+            }
+            printf("\n");
+        }
+    }
+
 }
 
 int controllogic(){
@@ -503,6 +517,11 @@ int controllogic(){
             }
         } else if((willbreak==0)&&(reachedend==1)){
             break;
+        }
+    }
+    for(numloops=0;numloops<CACHE_LENGTH;numloops++){
+        if(cache[numloops].is_valid==1){
+            write_cache_line(numloops);
         }
     }
     printstate();
@@ -1164,7 +1183,7 @@ int srav(int register2, int register3) {
 
 // Memory Stage helpers
 
-int check_cache(int location){
+void check_cache(int location){
     int slot = (location/(4*CACHE_LINE_LENGTH))%CACHE_LENGTH;
     int tag = location/(4*CACHE_LINE_LENGTH*CACHE_LENGTH);
     struct cache_line curcache = cache[slot];
@@ -1184,9 +1203,15 @@ int check_cache(int location){
         for(i=0;i<CACHE_LINE_LENGTH;i++){
             curcache.cacheLine[i]=data_memory[(location/(4*CACHE_LINE_LENGTH))*CACHE_LINE_LENGTH+i]; // rewrite memory
         }
-        return 0;
-    } else{
-        return 1;
+    }
+}
+
+void write_cache_line(int slot){
+    struct cache_line curcache = cache[slot];
+    int mostsig=((curcache.address_tag*CACHE_LENGTH)+slot)*CACHE_LINE_LENGTH;
+    int i;
+    for(i=0;i<CACHE_LINE_LENGTH;i++){
+        data_memory[mostsig+i]=curcache.cacheLine[i];
     }
 }
 
