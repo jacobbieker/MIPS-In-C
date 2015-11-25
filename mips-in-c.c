@@ -1,10 +1,10 @@
-/* CIS 314 Big Project, Week 2 Fall 2015
+/* CIS 314 Big Project, Week 3 Fall 2015
  *
  *  Authors:
  *      Matthew Jagielski, Jacob Bieker, and Theodore LaGrow
  *
  *  Date:
- *      11/19/2015
+ *      11/25/2015
  *      
  *  Sources:
  *      CIS 314 on canvas.uoregon.edu
@@ -16,10 +16,10 @@
  *      Single cycle processor simulation in C: implement (a) a register file, (b) an ALU
  *      (c) control logic, and (d) main memory.
  *
- *      Week 2: (WE ARE HERE!)
+ *      Week 2: 
  *      Convert the single cycle processor into a pipelined 5-stage processor.
  *
- *      Week 3:
+ *      Week 3: (WE ARE HERE!)
  *      Build a direct-mapped cache structure between the main memory and the 5-stage
  *      processor.
  *  
