@@ -73,7 +73,7 @@ struct Instruction_Type { // generic instruction type - holds instruction only
 struct r_type { // holds all r type values
     int *pc_ptr;
     instruction instr;
-    char dest_register;
+    int dest_register;
     int s_register1;
     int s_register2;
     char shamt;
@@ -82,7 +82,7 @@ struct r_type { // holds all r type values
 struct i_type { // holds all i type values
     int *pc_ptr;
     instruction instr;
-    char dest_register;
+    int dest_register;
     int s_register;
     int immediate;
 };
@@ -333,12 +333,10 @@ int main(int argc, char *argv[]) {
         printf("%d, %s\n", jump_locations[i], jump_names[i]);
         if((instructions[jump_locations[i]]!=NULL)&&(strcmp(instructions[jump_locations[i]],"")!=0)){
             printf("%s\n", instructions[jump_locations[i]]);
-        } else{
-            printf("WOWOOWOOWOWOOW\n");
         }
         i++;
     }
-    printf("\n\n\n\n\n\n");
+    printf("\n\n\n\n");
     controllogic();
     
     america();
@@ -437,7 +435,6 @@ int controllogic(){
 
     while(1){
         if((instr[0]!=NULL)&&((*(struct Instruction_Type*)instr[0])).instr==Break){
-            printf("bmbumbbumbumb\n");
             willbreak=2; reachedend=1;
             for(i=0;i<2;i++){
                 cur_instruction[i]=NULL; instr[i]=NULL;
@@ -449,15 +446,15 @@ int controllogic(){
                 
 		pthread_create(&threads[4], NULL, writebackvoid, memwb_ptr[0]);
         pthread_create(&threads[0], NULL, fetchvoid, (void*) &pc);
-		pthread_create(&threads[2], NULL, executevoid, instr[0]);
 		pthread_create(&threads[3], NULL, memory_rw_void, exmem_ptr[0]);
 
 		pthread_join(threads[4], NULL);
+        pthread_join(threads[0], &cur_instruction[1]);
 
 		pthread_create(&threads[1], NULL, decodevoid, cur_instruction[0]);
+		pthread_create(&threads[2], NULL, executevoid, instr[0]);
 
 		// Wait for each thread to finish
-		pthread_join(threads[0], &cur_instruction[1]);
 		pthread_join(threads[1], &instr[1]);
 		pthread_join(threads[2], &exmem_ptr[1]);
 		pthread_join(threads[3], &memwb_ptr[1]);
@@ -468,21 +465,19 @@ int controllogic(){
             if((*instr_temp).instr<Addi){
                 if(RegistersInUse[RegAccess[1]]!=0 || RegistersInUse[RegAccess[0]]!=0){
                     instr[0]=NULL; instr[1]=NULL; cur_instruction[1]=cur_instruction[0]; pc = lastpc;
-                }
-                if((*(struct r_type*)instr_temp).dest_register!=0){
+                } else if((*(struct r_type*)instr_temp).dest_register!=0){
                     lockedreg=(*(struct r_type*)instr_temp).dest_register;
-                    RegistersInUse[lockedreg]=1;
+                    RegistersInUse[lockedreg]+=1;
                 } 
             } else if((*instr_temp).instr<J){ 
                 if(RegistersInUse[RegAccess[1]]!=0 || RegistersInUse[RegAccess[0]]!=0){
                     instr[0]=NULL; instr[1]=NULL; cur_instruction[1]=cur_instruction[0]; pc = lastpc;
-                }
-                if(LOCK!=0 && (*(struct i_type*)instr_temp).dest_register!=0){
+                } else if(LOCK!=0 && (*(struct i_type*)instr_temp).dest_register!=0){
                     lockedreg=(*(struct i_type*)instr_temp).dest_register;
-                    RegistersInUse[lockedreg]=1;
+                    RegistersInUse[lockedreg]+=1;
                 }
             } else if((*instr_temp).instr==Jal){
-                RegistersInUse[31]=1;
+                RegistersInUse[31]+=1;
                 lockedreg=31;
             }
         }   
@@ -498,7 +493,7 @@ int controllogic(){
             exmem_temp = exmem_ptr[0];
             if((*exmem_temp).will_branch!=0){
                 if(lockedreg!=0){
-                    RegistersInUse[lockedreg]=0;
+                    RegistersInUse[lockedreg]-=1;
                 }   
                 cur_instruction[0]=NULL; instr[0]=NULL;
                 pc=(*exmem_temp).will_branch;
@@ -507,9 +502,6 @@ int controllogic(){
         lastpc = pc;
         LOCK=0; lockedreg=0;
         numloops++;
-        if(numloops>1300){
-            //break;
-        }
         if(willbreak>0){
             willbreak--;
             for(i=0;i<2;i++){
@@ -614,9 +606,7 @@ struct exmem* execute(struct Instruction_Type* instr){
     int *pc_ptr;
     int new_pc;
 
-    printf("exe\n");
     if(instr==NULL){
-        printf("exenull\n");
         return NULL;
     }
     pc_ptr=(*instr).pc_ptr;
@@ -631,7 +621,6 @@ struct exmem* execute(struct Instruction_Type* instr){
         j_instr_ptr=(struct j_type*)instr;
         exmem_ptr = execute_j(j_instr_ptr,new_pc);
     } else{
-        printf("asfwefuahwefdad\n");
         exit(1);
     }
     
@@ -650,7 +639,7 @@ struct exmem* execute_r(struct r_type *r_type_ptr){
 
     (*exmem_ptr).instrnum=r_instr.instr; (*exmem_ptr).will_branch=0;
     if(r_instr.instr==Jr) { // get address from RF
-        (*exmem_ptr).will_branch = r_instr.dest_register;
+        (*exmem_ptr).will_branch = r_instr.s_register1;
     } else if(r_instr.instr>=Mfhi) { //mfhi, mflo save to register
         (*exmem_ptr).dest_register = r_instr.dest_register;
     } else if(r_instr.instr==MfcZ){ // save to in dest, save from location in s_r1
@@ -717,7 +706,8 @@ struct exmem* execute_j(struct j_type *j_type_ptr, int pc){
         (*exmem_ptr).will_branch=j_instr.jump_to;
     } else{ // jal
         (*exmem_ptr).will_branch=j_instr.jump_to;
-        (*exmem_ptr).alu_result=pc; (*exmem_ptr).dest_register=31;
+        (*exmem_ptr).alu_result=pc-2; //pipelining advances one stage before reading can be done
+        (*exmem_ptr).dest_register=31;
     }
     free(j_type_ptr);
     
@@ -822,13 +812,10 @@ struct memwb *memory_rw(struct exmem* exmem_ptr){
     struct memwb *memwb_ptr = (struct memwb*)calloc(1, sizeof(struct memwb));
     struct memwb memwb_reg = *memwb_ptr;
 
-    printf("mem\n");
     if(exmem_ptr==NULL){
-        printf("mmenyll\n");
         return NULL;
     }
     exmem_reg=*exmem_ptr;
-    printf("exmem:instr:%d,dest:%d,alu:%d\n",exmem_reg.instrnum,exmem_reg.dest_register,exmem_reg.alu_result);
     (*memwb_ptr).instrnum=exmem_reg.instrnum;
     (*memwb_ptr).dest_register=exmem_reg.dest_register;
     if(exmem_reg.instrnum==Lw){
@@ -865,7 +852,6 @@ void* writebackvoid(void* memwb_void){
 
 void writeback(struct memwb* memwb_ptr){
     struct memwb memwb_reg;
-    printf("wb\n");
     if(memwb_ptr!=NULL){
         memwb_reg = *memwb_ptr;
         printf("memwb:instr:%d,dest:%d,val:%d\n",memwb_reg.instrnum,memwb_reg.dest_register,memwb_reg.value);
@@ -879,7 +865,7 @@ void writeback(struct memwb* memwb_ptr){
             register_write(memwb_reg.dest_register,memwb_reg.value);
         }
         if(memwb_reg.dest_register!=0){
-            RegistersInUse[memwb_reg.dest_register]=0;
+            RegistersInUse[memwb_reg.dest_register]-=1;
         }
     }
     
@@ -1044,10 +1030,15 @@ struct indexed_register* nextindexedregister(char* instr, int* ptr){
     int i=*ptr; int start; char newit;
     struct indexed_register *indreg_ptr=(struct indexed_register*)calloc(1,sizeof(struct indexed_register));
     struct indexed_register indreg = *indreg_ptr;
+    memset(reg,0,sizeof(reg));
     
     while(isspace(*(instr+i))){i++;}
     start=i;
-    (*indreg_ptr).index = strtol(instr+start,(char**)NULL,10);
+    if(*(instr+i)=='('){
+        (*indreg_ptr).index = 0;
+    } else{
+        (*indreg_ptr).index = strtol(instr+start,(char**)NULL,10);
+    }
     while(*(instr+i)!='('){i++;}
     i++;
     start=i;
@@ -1056,6 +1047,7 @@ struct indexed_register* nextindexedregister(char* instr, int* ptr){
         i++;
     }
     i = 0;
+    printf("%s\n",reg);
     for(newit=0;newit<32;newit++){
         if(strcmp(reg,RegisterFileNames[newit])==0||strcmp(reg,RegisterNumberNames[newit])==0){
             (*indreg_ptr).mem_register=newit;
@@ -1193,15 +1185,15 @@ void check_cache(int location){
         is_hit = 1;
     }
     if(is_hit==0){
-        if(curcache.is_valid==1){
+        if(curcache.is_valid==1){ // need to rewrite these cache values
             for(i=0;i<CACHE_LINE_LENGTH;i++){
-                data_memory[(location/(4*CACHE_LINE_LENGTH))*CACHE_LINE_LENGTH+i]=curcache.cacheLine[i]; // rewrite memory
+                data_memory[(curcache.address_tag*CACHE_LENGTH+slot)*CACHE_LINE_LENGTH+i]=curcache.cacheLine[i]; // rewrite memory
             }
         }
-        cache[slot].is_valid = 1;
+        cache[slot].is_valid = 1; //reassign cache values
         cache[slot].address_tag = tag;
         for(i=0;i<CACHE_LINE_LENGTH;i++){
-            curcache.cacheLine[i]=data_memory[(location/(4*CACHE_LINE_LENGTH))*CACHE_LINE_LENGTH+i]; // rewrite memory
+            curcache.cacheLine[i]=data_memory[(location/(4*CACHE_LINE_LENGTH))*CACHE_LINE_LENGTH+i]; // copy into cache
         }
     }
 }
@@ -1235,7 +1227,7 @@ short lh_read(int registerAndIndex) {
     check_cache(registerAndIndex);
 	
 	a = cache[slot].cacheLine[offset];
-	b = (short)a; //TODO: make this get the right half
+	b = (short)a;
     return b;
 }
 
@@ -1376,12 +1368,16 @@ void sb(int register1, int registerAndIndex) {
 
 // Move from HI (WriteBack Stage)
 void mfhi(int register2) {
-	register2= HI;
+	if(register2!=0){
+        RegisterFile[register2]= HI;
+    }
 }
 
 // Move from LO (WriteBack Stage)
 void mflo(int register2) {
-	register2 = LO;
+	if(register2!=0){
+        RegisterFile[register2] = LO;
+    }
 }
 
 void mtcZ(int Zregister, int value){
@@ -1667,83 +1663,3 @@ ___________________▄▄▄▀▀▀▀▀▀▀▄
 
 
  */
-
-
-/*
-
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++;"^~~555^"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++?~||||||||hh|^+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++"5|||||||||hhhh]^?^^~|||5~"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++;5h|||||||||hhhhhh|||||||||hh|^++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++??"^~~|h|||hhhhh||||||||||hhhhqh";+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++;;;++++;^5hhhqhh|||||||||hhhhq]pph5"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++;?;;;;;;;??"~|5""^~5|||||hhhhqq]p0phh|^^?;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++;"]0^?????""^^"?;;+++;?^5|hhhhq]p000phhhhq]q^++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++?qO]h??"""^^~^??;;;;;;;;??~|q]pp00000hhhhhqpO05++++++++++++++++++++++++++++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++??00p|"""^^~~5""p0^???????""^5q0000000hhhhhhq]0QO|?+++++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++?"^~55|||||55|h|5qO0^^^^~~5|5"]0]|??"""""^^~~5q0000phhhhhhhhh]pOQQq;+++++++++++++++++++++++++++++++++++++++++++++++++
-++++++++++++++;"~5||||||||||||||||||hhh|||55|||5^0pO5"""^^^^^~~5|h]00q||||hhhhhhh]pOQQ++++++++++++++++++++++++++++++++++++++++++++++++++
-++++++++++++?|0]||||||||||||||||||||||||hhhhhhh|~]Q0^^^^~~~555|hqqp]|||||||hhhhhhq]p0O++++++++++++++++++++++++++++++++++++++++++++++++++
-++++++++++^||qh||||||||||||hh|||||||||||hhhhhhhhhhq5~~~~55||hhhqq]h|||||||hhhhhhhh]pp"++++++++++++++++++++++++++++++++++++++++++++++++++
-++++++++?||||||||||||||]00O0]||||||||hhhhhhhhhhhhhhqh||||||hhhhhhhhhhhh||hhhhhhhhhq]p]?+++++++++++++++++++++++++++++++++++++++++++++++++
-+++++++~||||||||||||||||||||||||||hhhhhhhhhhhhhhhhhqh||||||hhhhhhhhhhhqqhhhhhhhhhhq]pp];++++++++++++++++++++++++++++++++++++++++++++++++
-+++++;5|||||||||||||||||||||||||hhhhhhhhhhhhhhhhhhhh||||||hhhhhhhhhhhqqq]]qhhhhhhqq]ppph++++++++++++++++++++++++++++++++++++++++++++++++
-++++;5h||||||||||||||||||h|hhhhhhhhhhhhhhhhhhhhqhhhhh||||||hhhhhhhhhqqq]]]p]qhhqqq]]ppp0"+++++++++++++++++++++++++++++++++++++++++++++++
-++++5hh||||||||||||||||hhhhhhhhhhhhhhhhhhhhhqqqhhhhhhhhhhhhhhhhhhhhqqq]]]ppppqqqq]]pppp05+++++++++++++++++++++++++++++++++++++++++++++++
-+++~hhhh|||||||||||||hhhhhhhhhhhhhhhhhhhhhqq]qhhhhhhhhhhhhhhhhhhhqqq]]]]pppp00]]]]pppp005+++++++++++++++++++++++++++++++++++++++++++++++
-+++hhhhhhhh||h|hhhhhhhhhhhhhhhhhhhhhhhhhqq]]qhhhhhhhhhhhhhh|~^"?????"^5qpp000Op]ppppp0005+++++++++++++++++++++++++++++++++++++++++++++++
-++^hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhqq]]p]hhhhhhhhhhhh5";;;;;;????"""^~q00OQOppppp0000"+++++++++++++++++++++++++++++++++++++++++++++++
-++?hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhqqq]]ppqhhhhhhhhh|^;;;;;;?????"""^^~~5qQQQOpppp0000~++++++++++++++++++++++++++++++++++++++++++++++++
-+++5hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhqqqq]]pppqhhhhhhhh~;;;;;?????""""^^~~55||OQQ0000000p"+++++++++++++++++++++++++++++++++++++++++++;?;+++
-+++?hhhhhhhhhhhhhhhhhhhhhhhhhhqqqqqq]]]ppppphqqqqq|?????????""""^^~~~55||||OQ0000000q?++++++++++++++++++++++++++++++++++++++++++"~|||"++
-++++?hqqhhhhhhhhhhhhhhhhhhqqqqqqqq]]]]ppppppqqqqq~???"""""""^^^~~~55||||||]Q000000]^+++++++++++++++++++++++++++++++++++++++++;^5|||||^++
-++++++~]]]qqqqqqqqqqqqqqqq]]]]]]]]]]pppppppppqqh""""^^^^^^^~~~555||||||||]O0000p5?+++++++++++++++++++++++++++++++++++++++++?~||||||||^++
-+++++++?|ppp]]]]]]]]]]]]pppppppppppppppppppppp]~~~~~~~~55555|||||||||||qp00000~;++++++++++++++++++++++++++++++++++++++++;^5|||||||||h+++
-+++++++++?|pppppppppppppppppppppppppppppppppppp]|5555|555|||||||||||hqp0000OQQQQQpq~+++++++;;;++;;+;+++++++++++++++++;?~||||||||||hq~+++
-+++++++++++;^hppppppppppppppppppppppppppppppppq5^~~555|5||||||||||5|q0000000QQQQQQQQ++++++;;;?"""??;;+++++;+;++++;?^~||||||||||||hh]++++
-++++++++++++++;^|qpppppppppppppppppppppppp]h5^^^^^^^^^~~~~~~~~~~~|]0000000000OQQQQQQ5^~h]]]00000ppq|5~^^?;++++;;"5||||||||||||||hhp"++++
-+++++++++++++++++++?"~5|qq]]ppp]]q]]]qh|5^^^^^^^^^^^^^^^^^^^~5hqpp0000000000000QQQQQh~~~~|qpOOOOOOO0p]qh|55~^?;+++;"5||||||||||hhp|+++++
-+++++++++++++++++++++++++++++++++++;??"""^^^^^^^^^^^^^^^^~~~qppppp000000000000000OOQ]h|~~~~~5q0OOOOOOO0p]]]qh55~";++;"||hhhhhhhhpq++++++
-+++++++++++++++++++++++++++++++++++++++++++++^^^^^^^^^^^^~~~~qppppp000000000000000000000ph5~~~~]OOOOOOOO0]]]]]h5|h^;++;~hhhhhhhp];++++++
-+++++++++++++++++++++++++++++++++++++++++++++~^^^^^^^^^^^~~~~~qppppp00000000000000000000000]~~~~]OOOOOOOO0]]]]]]h5|5;+++^hhhhqp0"+++++++
-+++++++++++++++++++++++++++++++++++++++++++++"^^^^^^^^^^^^~~~~~qpppp000000000000000000000000]~~~~0OOOOOOOOp]]]]]]]|55;+++^hhqp0^++++++++
-+++++++++++++++++++++++++++++++++++++++++++++?^^^^^^^^^^^^^~~~~~]pppp000000000000000000000000h~~~|OOOOOOOO0]]]]]]]]|5~;++;|qp0|+++++++++
-+++++++++++++++++++++++++++++++++++++++++++++?^^^^^^^^^^^^^^~~~~5ppppp00000000000000000000000p~~~^]OOOOOOO0]]]]]]]]pq5^+++^p0q++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++?^^^^^^^^^^^^^^^~~~~|ppppp00000000000000000000000h~~~5OOOOOOO0ppppppppp]|"+++^00"++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++q^^^^^^^^^^^^^^^^~~~~qppppp0000000000000000000000p~~~~]OOOO0ppppppppppp|~;++;q0~+++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++05^^^^^^^^^^^^^^^^~~~~qpppppp000000000000000000000h~~^^000ppppppppppppq^;++?h05++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++;~0]^^^^^^^^^^^^^^^^^~~~~hppppppp0000000p000000000000~~;;"]ppppppppppppq"++;~]0~+++++++++++++
-++++++++++++++++++++++++++++++++++++++++;~q0000~^^^^^^^^^^^^^^^^^^~~~5qppppppp00000000000000p000p~?+;?5qq]]]]qh|5";;?~]0h?++++++++++++++
-++++++++++++++++++++++++++++++++++++++;50000000h^^^^^^^^^^^^^^^^^^^~~~~5hpppppp00ppp00000pqq]00000h^???;;;;;;;??""5qp0]^++++++++++++++++
-+++++++++++++++++++++++++++++++++++++50000000000~^^^^^^^^^^^^^^^^^^^^~~~~~5h]p0ppppppp0]qhq]p0000000pqh||55|||hqp000]^++++++++++++++++++
-+++++++++++++++++++++++++++++++++++?]0000000000p5"^^^^^^^^^^^^^^^^^^^^^~~~~~~50pppppp]hhhh]p0000000000000000000000q^++++++++++++++++++++
-++++++++++++++++++++++++++++++++++?]00pp]]pp0h^+++?^^^^^^^^^^^^^^^^^^^^^^~~~~~00pp]qhhhhh]pp000000000000000000005?++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++^|h|||||hhhq++++++;"^^^^^^^^^^^^^^^^^^~~~~~5|qqh||hhhhh]p00000000000]hqp0000000++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++~|||||||hhhq]5+++++++?^^^^^^^^^^^^^^^~~~~5|||||||||hhhh]p0000000000phhhqqq]p000p++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++"hhhhhhhhhhhq]5+++++++++?^^^^^^^^^^^^~~5||||||||||hhhq]pp00000000000qhhhqq]]pp005++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++~hhhhhhhhhhhq]];+++++++++;"^^^^^^^^^~5|||||||||hhq]ppp0000000000000qhhhq]]ppp000;++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++^hhhhqhhhhhq]ppq++++++++++++?"^^^^~5||||||||hhq]p00q|p00000000000pqhhhqq]ppp000^+++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++?hhqq]0p]]ppp00q+++++++++++++h0q5|||||||||hh]pp0ph~5p0pp0p000000]hhhhqq]pp0000~++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++;5qppp0q|||||^+++++++?"^~|hh0q||||||||||hqp000qhhhq0pppppp0p]qhqqqqqq]pp0000~+++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++;"?++++++++++"~h]0OOOOOOO]h|||||||hhhh]pQQQQQQQOppppppqhhhqq]]]]]]pp0000^++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++"|]]pOOOOOOOQQ0hhhhhhhhhhhhq]pOOOOO000pppppphqqq]]ppppppp000]"+++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++?hp00OOOOOQQQQQQ0hhhhhhhhhhhhh]pp000000O0ppppp]]]ppppppppp000h+++++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++?p0OOOOOOOQQQQ0]]]hhhhhqhhhhhq]]p000000OOQp]pppppppp0000000000Oq^+++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++50000OOOOQQQQO0p]]qhhqq]0p]]]pp00000p00QQp]]0O0ppp000000000OQQOOO]++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++^0000000OOOOOOOOOQO0ppppp00000p00000000OOp]]]pQQQOOOOOOOQQQOOO0000^+++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++"p000000000000000000pppp00000OO0pp]]q]0OQOppp0OQQ0000ppp]]]]]]]ph++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++++"q000000000000000000000OO00q~+++++?~q0O00p0OOO0]]]]]]]]]]]pp00Op"+++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++++++;~|]p0000000000pp]]qh5~";++++?5pOQOp]]]p0p]]]]]]]]]]]pp0OOOOOOO+++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++??"^^^^"""""?;++++++++"h0OOO]]]]]]]]]]]]]]]]]]]]]]]pOOOOOO;++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++|0OOOQQp]]]]]]]]]]]]]]]]]]]]]]pp0OO]?+++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++500OOQOOOQ0p]]]]]]]]]]]]]]]]]]pp0Oq5+++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++p0000pppp]]]|"~]]]]]]]]]]]]]]pp00;+++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++|0p]]]]]]]]]]]]]]]]]]]]]]]]ppp00"++++++++++++++++++++++++++++++++
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++|]]]]]]]]]]]]]]]]]]]]]]pppp00p?+++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"qppp]]]]]]]]]]]pppppppp00p|;++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"~|qq]ppppppppppp000pq5";++++++++++++++++++++++++++++++++++++
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++;?"^^~5hh|||5^"?+++++++++++++++++++++++++++++++++++++++++
-
-
-*/
