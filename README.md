@@ -1,2 +1,2 @@
-# CIS_314_Final_Project
+# MIPS In C
 The final project for Computer Organization, simulating a MIPS CPU in C
